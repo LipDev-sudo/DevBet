@@ -26,8 +26,9 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 360,
     context: 'O caixa fecha a conta de uma mesa: cada ficha tem um preço e a casa dá um desconto.',
     objective: [
-      'Escreva `calcular_total(preco, quantidade, desconto)`.',
-      'Ela devolve preço × quantidade, menos o desconto.',
+      'Escreva `calcular_total(preco, quantidade, desconto)`, que recebe três números (podem ser decimais).',
+      'Ela **devolve** (com `return`, não `print`) preço × quantidade − desconto.',
+      'Exemplo: `calcular_total(10, 3, 5)` devolve `25`.',
     ],
     concept: 'Variáveis, operadores aritméticos, parâmetros e return.',
     concepts: ['variable', 'operator', 'function', 'parameter', 'return'],
@@ -35,7 +36,7 @@ export const CHALLENGES: readonly Challenge[] = [
     starterCode:
       'def calcular_total(preco, quantidade, desconto):\n    # seu código aqui\n    pass\n',
     tests: [
-      { name: 'Teste 01 — conta simples', expr: 'calcular_total(10, 3, 5)', expected: 25 },
+      { name: 'Teste 01 — conta simples', expr: 'calcular_total(12, 2, 4)', expected: 20 },
       { name: 'Teste 02 — nenhuma ficha', expr: 'calcular_total(7, 0, 0)', expected: 0 },
       { name: 'Teste 03 — números decimais', expr: 'calcular_total(2.5, 4, 1)', expected: 9 },
       {
@@ -69,7 +70,8 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 330,
     context: 'O Dealer cumprimenta cada jogador pelo nome.',
     objective: [
-      'Escreva `saudacao(nome)`, que devolve o texto `Olá, <nome>!`.',
+      'Escreva `saudacao(nome)`, que recebe um texto qualquer e **devolve** exatamente `Olá, ` + nome + `!`.',
+      'O formato é fixo: "O" maiúsculo, acento no "á", vírgula, um espaço, o nome como veio e ponto de exclamação. Vale para qualquer nome, não só o do exemplo.',
       'Exemplo: `saudacao("Ana")` devolve `"Olá, Ana!"`.',
     ],
     concept: 'Strings, f-strings e return.',
@@ -77,7 +79,7 @@ export const CHALLENGES: readonly Challenge[] = [
     functionName: 'saudacao',
     starterCode: 'def saudacao(nome):\n    # seu código aqui\n    pass\n',
     tests: [
-      { name: 'Teste 01 — Ana', expr: 'saudacao("Ana")', expected: 'Olá, Ana!' },
+      { name: 'Teste 01 — Marina', expr: 'saudacao("Marina")', expected: 'Olá, Marina!' },
       { name: 'Teste 02 — Dev', expr: 'saudacao("Dev")', expected: 'Olá, Dev!' },
       { name: 'Teste oculto — acento', expr: 'saudacao("Zé")', expected: 'Olá, Zé!', hidden: true },
     ],
@@ -103,16 +105,16 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 480,
     context: 'O Grande Torneio só abre em anos bissextos.',
     objective: [
-      'Escreva `eh_bissexto(ano)`, que devolve `True` ou `False`.',
+      'Escreva `eh_bissexto(ano)`, que recebe um ano inteiro e devolve o booleano `True` ou `False` (não texto).',
       'Um ano é bissexto se for divisível por 4, exceto os divisíveis por 100 — a não ser que também sejam divisíveis por 400.',
-      'Exemplos: 2024 é bissexto; 1900 não é; 2000 é.',
+      'Exemplo: `eh_bissexto(2024)` devolve `True`.',
     ],
     concept: 'Booleanos, operadores lógicos (and, or) e resto da divisão (%).',
     concepts: ['boolean', 'condition', 'operator'],
     functionName: 'eh_bissexto',
     starterCode: 'def eh_bissexto(ano):\n    # seu código aqui\n    pass\n',
     tests: [
-      { name: 'Teste 01 — 2024', expr: 'eh_bissexto(2024)', expected: true },
+      { name: 'Teste 01 — 2016', expr: 'eh_bissexto(2016)', expected: true },
       { name: 'Teste 02 — 2023', expr: 'eh_bissexto(2023)', expected: false },
       { name: 'Teste 03 — 2000', expr: 'eh_bissexto(2000)', expected: true },
       { name: 'Teste oculto — 1900', expr: 'eh_bissexto(1900)', expected: false, hidden: true },
@@ -141,15 +143,16 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 430,
     context: 'O segurança do cassino separa os visitantes em faixas.',
     objective: [
-      'Escreva `classificar_idade(idade)`.',
-      'Ela devolve `"crianca"` (menos de 12), `"adolescente"` (12 a 17), `"adulto"` (18 a 59) ou `"idoso"` (60 ou mais).',
+      'Escreva `classificar_idade(idade)`, que recebe uma idade inteira.',
+      'Ela **devolve** exatamente um destes textos, em minúsculas e sem acento: `"crianca"` (menos de 12), `"adolescente"` (12 a 17), `"adulto"` (18 a 59) ou `"idoso"` (60 ou mais).',
+      'Exemplo: `classificar_idade(8)` devolve `"crianca"`.',
     ],
     concept: 'if / elif / else e comparações.',
     concepts: ['condition', 'boolean'],
     functionName: 'classificar_idade',
     starterCode: 'def classificar_idade(idade):\n    # seu código aqui\n    pass\n',
     tests: [
-      { name: 'Teste 01 — 8 anos', expr: 'classificar_idade(8)', expected: 'crianca' },
+      { name: 'Teste 01 — 5 anos', expr: 'classificar_idade(5)', expected: 'crianca' },
       { name: 'Teste 02 — 15 anos', expr: 'classificar_idade(15)', expected: 'adolescente' },
       { name: 'Teste 03 — 30 anos', expr: 'classificar_idade(30)', expected: 'adulto' },
       { name: 'Teste 04 — 70 anos', expr: 'classificar_idade(70)', expected: 'idoso' },
@@ -195,15 +198,16 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 560,
     context: 'O croupier empilha fichas: 1 na primeira rodada, 2 na segunda, 3 na terceira…',
     objective: [
-      'Escreva `somar_ate(n)`, que devolve a soma de todos os inteiros de 1 até `n`.',
+      'Escreva `somar_ate(n)`, que recebe um inteiro `n` (0 ou mais) e devolve a soma de todos os inteiros de 1 até `n`, incluindo o próprio `n`.',
       'Para `n = 0`, devolve 0.',
+      'Exemplo: `somar_ate(3)` devolve `6` (1 + 2 + 3).',
     ],
     concept: 'Loop for com range, acumulador e condição de parada.',
     concepts: ['for', 'variable', 'operator'],
     functionName: 'somar_ate',
     starterCode: 'def somar_ate(n):\n    soma = 0\n    # seu código aqui\n    return soma\n',
     tests: [
-      { name: 'Teste 01 — até 3', expr: 'somar_ate(3)', expected: 6 },
+      { name: 'Teste 01 — até 4', expr: 'somar_ate(4)', expected: 10 },
       { name: 'Teste 02 — até 10', expr: 'somar_ate(10)', expected: 55 },
       { name: 'Teste 03 — zero', expr: 'somar_ate(0)', expected: 0 },
       { name: 'Teste oculto — até 100', expr: 'somar_ate(100)', expected: 5050, hidden: true },
@@ -234,8 +238,9 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 570,
     context: 'A roleta de letras paga um bônus por vogal.',
     objective: [
-      'Escreva `contar_vogais(texto)`.',
-      'Ela devolve quantas vogais (a, e, i, o, u — maiúsculas ou minúsculas) o texto tem.',
+      'Escreva `contar_vogais(texto)`, que recebe um texto.',
+      'Ela **devolve** um número inteiro: quantas vezes aparecem as letras a, e, i, o, u, maiúsculas ou minúsculas. Qualquer outro caractere não conta.',
+      'Exemplo: `contar_vogais("banana")` devolve `3`.',
     ],
     concept: 'Percorrer uma string, condições dentro de loops e maiúsculas/minúsculas.',
     concepts: ['for', 'condition', 'variable'],
@@ -243,7 +248,7 @@ export const CHALLENGES: readonly Challenge[] = [
     starterCode:
       'def contar_vogais(texto):\n    total = 0\n    # seu código aqui\n    return total\n',
     tests: [
-      { name: 'Teste 01 — banana', expr: 'contar_vogais("banana")', expected: 3 },
+      { name: 'Teste 01 — roleta', expr: 'contar_vogais("roleta")', expected: 3 },
       { name: 'Teste 02 — maiúsculas', expr: 'contar_vogais("DEALER")', expected: 3 },
       { name: 'Teste 03 — sem vogais', expr: 'contar_vogais("xyz")', expected: 0 },
       { name: 'Teste oculto — todas', expr: 'contar_vogais("Aeiou")', expected: 5, hidden: true },
@@ -271,15 +276,16 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 770,
     context: 'Entre as apostas da rodada, a casa precisa achar a maior.',
     objective: [
-      'Escreva `maior_da_lista(lista)`, que devolve o maior número da lista.',
+      'Escreva `maior_da_lista(lista)`, que recebe uma lista de números e devolve o maior deles.',
       'Se a lista estiver vazia, devolve `None`. A lista pode ter números negativos.',
+      'Exemplo: `maior_da_lista([3, 9, 2])` devolve `9`.',
     ],
     concept: 'Listas, índices, comparação e o caso de lista vazia.',
     concepts: ['list', 'for', 'condition', 'variable'],
     functionName: 'maior_da_lista',
     starterCode: 'def maior_da_lista(lista):\n    # seu código aqui\n    pass\n',
     tests: [
-      { name: 'Teste 01 — lista comum', expr: 'maior_da_lista([3, 9, 2])', expected: 9 },
+      { name: 'Teste 01 — lista comum', expr: 'maior_da_lista([4, 12, 7])', expected: 12 },
       { name: 'Teste 02 — um item', expr: 'maior_da_lista([7])', expected: 7 },
       { name: 'Teste 03 — lista vazia', expr: 'maior_da_lista([])', expected: null },
       {
@@ -318,7 +324,7 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 690,
     context: 'O livro de registros anota quantas vezes cada palavra apareceu numa mão.',
     objective: [
-      'Escreva `contar_frequencia(palavras)`, que recebe uma lista de strings e devolve um dicionário com a contagem.',
+      'Escreva `contar_frequencia(palavras)`, que recebe uma lista de strings e devolve um dicionário: cada palavra (exatamente como veio, maiúsculas e acentos contam como diferentes) é uma chave, e o valor é quantas vezes ela apareceu.',
       'Exemplo: `["a", "b", "a"]` vira `{"a": 2, "b": 1}`.',
     ],
     concept: 'Dicionários como contadores e loops.',
@@ -329,8 +335,8 @@ export const CHALLENGES: readonly Challenge[] = [
     tests: [
       {
         name: 'Teste 01 — repetidas',
-        expr: 'contar_frequencia(["a", "b", "a"])',
-        expected: { a: 2, b: 1 },
+        expr: 'contar_frequencia(["rei", "dama", "rei"])',
+        expected: { rei: 2, dama: 1 },
       },
       { name: 'Teste 02 — lista vazia', expr: 'contar_frequencia([])', expected: {} },
       {
@@ -369,7 +375,7 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 640,
     context: 'O Dealer recebeu uma lista de fichas com valores repetidos.',
     objective: [
-      'Escreva `fichas_unicas(valores)`, que devolve os valores sem repetição, em ordem crescente.',
+      'Escreva `fichas_unicas(valores)`, que recebe uma lista de números e devolve uma **lista** com os mesmos valores, sem repetição, em ordem crescente.',
       'Exemplo: `[3, 1, 3, 2, 1]` vira `[1, 2, 3]`.',
     ],
     concept: 'Conjuntos (set) para eliminar repetidos e sorted().',
@@ -377,7 +383,7 @@ export const CHALLENGES: readonly Challenge[] = [
     functionName: 'fichas_unicas',
     starterCode: 'def fichas_unicas(valores):\n    # seu código aqui\n    pass\n',
     tests: [
-      { name: 'Teste 01 — repetidos', expr: 'fichas_unicas([3, 1, 3, 2, 1])', expected: [1, 2, 3] },
+      { name: 'Teste 01 — repetidos', expr: 'fichas_unicas([6, 2, 6, 4, 2])', expected: [2, 4, 6] },
       { name: 'Teste 02 — um valor', expr: 'fichas_unicas([5])', expected: [5] },
       { name: 'Teste 03 — lista vazia', expr: 'fichas_unicas([])', expected: [] },
       {
@@ -416,8 +422,9 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 1090,
     context: 'De quantas maneiras dá para ordenar n cartas na mesa? A resposta é n! (fatorial).',
     objective: [
-      'Escreva `fatorial(n)`, que devolve n × (n−1) × … × 1. `fatorial(0)` e `fatorial(1)` valem 1.',
+      'Escreva `fatorial(n)`, que recebe um inteiro `n` (0 ou mais) e devolve n × (n−1) × … × 1. `fatorial(0)` e `fatorial(1)` valem 1.',
       'Resolva com **recursão**: uma função que chama a si mesma.',
+      'Exemplo: `fatorial(4)` devolve `24`.',
     ],
     concept: 'Recursão, caso base e caso recursivo.',
     concepts: ['recursion', 'function', 'return', 'condition'],
@@ -458,15 +465,16 @@ export const CHALLENGES: readonly Challenge[] = [
     target: 750,
     context: 'O Dealer precisa saber em que posição da fileira está uma ficha.',
     objective: [
-      'Escreva `busca_linear(lista, alvo)`, que devolve o índice da primeira ocorrência de `alvo`.',
+      'Escreva `busca_linear(lista, alvo)`, que devolve o índice (começando em 0) da primeira ocorrência de `alvo` na lista.',
       'Se o alvo não estiver na lista, devolve `-1`.',
+      'Exemplo: `busca_linear([4, 8, 15, 16], 15)` devolve `2`.',
     ],
     concept: 'Busca linear: percorrer a lista até achar, ou concluir que não existe.',
     concepts: ['search', 'list', 'for', 'condition', 'return'],
     functionName: 'busca_linear',
     starterCode: 'def busca_linear(lista, alvo):\n    # seu código aqui\n    pass\n',
     tests: [
-      { name: 'Teste 01 — no meio', expr: 'busca_linear([4, 8, 15, 16], 15)', expected: 2 },
+      { name: 'Teste 01 — no meio', expr: 'busca_linear([20, 30, 40], 30)', expected: 1 },
       { name: 'Teste 02 — ausente', expr: 'busca_linear([4, 8], 9)', expected: -1 },
       { name: 'Teste 03 — lista vazia', expr: 'busca_linear([], 1)', expected: -1 },
       {
@@ -520,7 +528,7 @@ export const BOSS_CHALLENGE: Challenge = {
   starterCode:
     '# A casa escondeu DOIS bugs aqui.\n# A função deveria devolver a contagem de n até 1 (sem o zero).\ndef contagem_regressiva(n):\n    resultado = []\n    i = n\n    while i >= 0:\n        resultado.append(i)\n    return resultado\n',
   tests: [
-    { name: 'Teste 01 — de 3 até 1', expr: 'contagem_regressiva(3)', expected: [3, 2, 1] },
+    { name: 'Teste 01 — de 4 até 1', expr: 'contagem_regressiva(4)', expected: [4, 3, 2, 1] },
     { name: 'Teste 02 — só o 1', expr: 'contagem_regressiva(1)', expected: [1] },
     { name: 'Teste 03 — zero não conta', expr: 'contagem_regressiva(0)', expected: [] },
     {
