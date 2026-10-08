@@ -1,0 +1,7 @@
+.next
+node_modules
+package-lock.json
+coverage
+next-env.d.ts
+public/monaco
+public/pyodide
