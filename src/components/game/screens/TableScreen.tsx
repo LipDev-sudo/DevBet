@@ -9,17 +9,23 @@ import { getChallenge } from '@/content/challenges';
 import { tableForLayer } from '@/content/tables';
 import { ComboCallout } from '../ComboCallout';
 import { briefChallenge, explainHand, restingMood } from '@/engine/dealer';
-import { handCards, RISK_LEVELS, RISK_ORDER, riskAvailability } from '@/engine/run';
-import { computeScore, previewHand, streakMultiplier } from '@/engine/scoring';
+import { BOSS_MAX_LADDER } from '@/engine/hints';
+import { canRedraw, handCards, RISK_LEVELS, RISK_ORDER, riskAvailability } from '@/engine/run';
+import { computeScore, FAIL_PENALTY, previewHand, streakMultiplier } from '@/engine/scoring';
 import { TOPIC_LABEL } from '@/engine/types';
 import { playSfx } from '@/lib/sfx';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Modal } from '@/components/ui/Modal';
+import { cardEffect, getCard, RARITY_LABEL } from '@/engine/cards';
+import { tutorialGate } from '@/engine/tutorial';
+import type { CardId } from '@/engine/types';
 import { useGame } from '../GameProvider';
 
 export function TableScreen() {
   const { state, dispatch } = useGame();
   const run = state.run;
   const encounter = run?.encounter;
+  const [inspected, setInspected] = useState<CardId | null>(null);
   const dealtKey = `${encounter?.challengeId}-${encounter?.redrawsLeft}`;
   const bossTable = encounter?.challengeId === 'boss-infinite-loop';
   useEffect(() => {
@@ -45,6 +51,11 @@ export function TableScreen() {
   const ratio = estimate / challenge.target;
   const isBoss = Boolean(challenge.boss);
   const table = tableForLayer(run.layerIndex);
+  const redraw = canRedraw(run);
+  const gate = tutorialGate(run);
+  const inspectedCard = inspected ? getCard(inspected) : null;
+  const inspectedBoosted = inspected ? challenge.concepts.includes(inspected) : false;
+  const inspectedEffect = inspectedCard ? cardEffect(inspectedCard, 0, inspectedBoosted) : null;
 
   return (
     <div className="screen-focus">
@@ -85,6 +96,7 @@ export function TableScreen() {
           <div
             className="relative z-10 mt-5 flex flex-wrap justify-center gap-3 px-4 sm:-mt-12 sm:gap-4"
             aria-label="Sua mão"
+            data-tutorial="hand"
           >
             {hand.map((card, index) => (
               <PlayingCard
@@ -94,6 +106,10 @@ export function TableScreen() {
                 size="md"
                 boosted={preview.lines.find((l) => l.uid === card.uid)?.boosted}
                 dealDelayMs={index * 90}
+                onClick={() => {
+                  setInspected(card.cardId);
+                  dispatch({ type: 'tutorial', event: { kind: 'inspect' } });
+                }}
               />
             ))}
           </div>
@@ -135,11 +151,11 @@ export function TableScreen() {
               Em dourado: conceitos que você tem na mão (efeito dobrado).
             </p>
             <dl className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <dt className="text-ivory-dim">Meta da mesa</dt>
                 <dd className="font-bold text-ivory tabular-nums">{challenge.target} pts</dd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <dt className="text-ivory-dim">Sua estimativa</dt>
                 <dd
                   className={`font-bold tabular-nums ${ratio >= 1 ? 'text-win' : 'text-crimson-hot'}`}
@@ -147,10 +163,10 @@ export function TableScreen() {
                   ~{estimate} pts
                 </dd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <dt className="text-ivory-dim">Multiplicador</dt>
-                <dd className="font-bold text-ivory tabular-nums">
-                  ×{preview.mult.toFixed(2)} · combo ×{streakMultiplier(run.streak).toFixed(2)}
+                <dd className="text-right font-bold text-ivory tabular-nums">
+                  ×{preview.mult.toFixed(2)} · sequência ×{streakMultiplier(run.streak).toFixed(2)}
                 </dd>
               </div>
             </dl>
@@ -165,13 +181,44 @@ export function TableScreen() {
               />
             </div>
             <p className="mt-2 text-xs text-ivory-dim">
-              Estimativa para um acerto de primeira, sem dicas. Erros e dicas reduzem a pontuação.
+              Multiplicador = 1 + cartas {preview.sumMult.toFixed(2)} + mão{' '}
+              {preview.rank.mult.toFixed(2)} + combos de conceitos {preview.comboMult.toFixed(2)}.
+            </p>
+            <p className="mt-2 text-xs text-ivory-dim">
+              Estimativa para uma entrega correta de primeira, sem dicas. Cada entrega errada custa{' '}
+              {Math.round(FAIL_PENALTY * 100)}% e cada dica paga custa mais; Executar para testar
+              não custa pontos.
             </p>
           </div>
 
           <div className="panel rounded-lg p-5">
             <p className="table-label">Risco · fichas virtuais</p>
-            <div className="mt-3 space-y-2" role="radiogroup" aria-label="Nível de risco">
+            <div
+              className="mt-3 space-y-2"
+              role="radiogroup"
+              aria-label="Nível de risco"
+              data-tutorial="risk"
+              onKeyDown={(event) => {
+                const step =
+                  event.key === 'ArrowRight' || event.key === 'ArrowDown'
+                    ? 1
+                    : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+                      ? -1
+                      : 0;
+                if (!step) return;
+                event.preventDefault();
+                const at = RISK_ORDER.indexOf(encounter.risk);
+                for (let i = 1; i <= RISK_ORDER.length; i++) {
+                  const next =
+                    RISK_ORDER[(at + step * i + RISK_ORDER.length * i) % RISK_ORDER.length];
+                  if (next && riskAvailability(challenge.difficulty, next, run.chips).ok) {
+                    dispatch({ type: 'risk', risk: next });
+                    document.getElementById(`risk-${next}`)?.focus();
+                    break;
+                  }
+                }
+              }}
+            >
               {RISK_ORDER.map((level) => {
                 const def = RISK_LEVELS[level];
                 const availability = riskAvailability(challenge.difficulty, level, run.chips);
@@ -180,8 +227,10 @@ export function TableScreen() {
                   <button
                     key={level}
                     type="button"
+                    id={`risk-${level}`}
                     role="radio"
                     aria-checked={active}
+                    tabIndex={active ? 0 : -1}
                     disabled={!availability.ok}
                     title={availability.ok ? undefined : availability.reason}
                     onClick={() => dispatch({ type: 'risk', risk: level })}
@@ -192,30 +241,61 @@ export function TableScreen() {
                         {def.label}
                       </span>
                       <span className="block text-xs text-ivory-dim">
-                        {def.wager === 0 ? 'Nada em jogo' : `Arrisca ${def.wager} fichas`}
+                        {!availability.ok
+                          ? availability.reason
+                          : def.wager === 0
+                            ? 'Nada em jogo'
+                            : `Em jogo: ${def.wager} fichas (de ${run.chips})`}
                       </span>
                     </span>
-                    <span className="font-mono text-sm font-bold text-gold-light">
-                      ×{def.multiplier.toFixed(1)}
+                    <span className="text-right">
+                      <span className="block font-mono text-sm font-bold text-gold-light">
+                        ×{def.multiplier.toFixed(1)}
+                      </span>
+                      <span className="block text-xs text-ivory-dim">
+                        +{Math.round(challenge.chipReward * def.multiplier)} fichas
+                      </span>
                     </span>
                   </button>
                 );
               })}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-ivory-dim">
-              Vitória: <strong className="text-gold-light">+{winChips}+ fichas</strong>
-              {risk.wager > 0 && <> (a aposta volta)</>}. Bust:{' '}
+              Se acertar: <strong className="text-gold-light">+{winChips} fichas</strong>
+              {risk.wager > 0 && <> e a aposta de {risk.wager} volta</>} (Jackpot e High Roll somam
+              bônus). Bust:{' '}
               <strong className="text-crimson-hot">
                 {risk.wager > 0 ? `−${risk.wager} fichas` : 'nenhuma ficha perdida'}
               </strong>{' '}
-              e −1 vida.
+              e −1 vida. O risco não muda a meta nem a chance de Bust: só quanto você ganha e quanto
+              pode perder.
               {challenge.difficulty < 2 && ' Riscos maiores abrem a partir da mesa LOGIC.'}
             </p>
           </div>
 
+          {isBoss && (
+            <div className="panel rounded-lg p-5 ring-1 ring-crimson-hot/40">
+              <p className="table-label !text-crimson-hot">Regras do boss</p>
+              <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-ivory-dim">
+                <li>
+                  O Bust não tira você da mesa: o boss exige revanche, e cada tentativa custa uma
+                  vida.
+                </li>
+                <li>
+                  O Dealer só dá dicas até o nível {BOSS_MAX_LADDER}; depois, só a solução
+                  explicada.
+                </li>
+                <li>Vencer o boss encerra a run com vitória e rende {challenge.xp} XP.</li>
+              </ul>
+            </div>
+          )}
+
           <div className="flex flex-col gap-3">
             <Button
               className="!py-4"
+              data-tutorial="start-challenge"
+              disabled={gate === 'start'}
+              title={gate === 'start' ? 'Primeiro toque em uma carta da sua mão.' : undefined}
               onClick={() => dispatch({ type: 'start' })}
               variant={isBoss ? 'crimson' : 'brass'}
             >
@@ -223,14 +303,46 @@ export function TableScreen() {
             </Button>
             <Button
               variant="ghost"
-              disabled={encounter.redrawsLeft <= 0}
+              disabled={!redraw.ok}
+              title={redraw.ok ? undefined : redraw.reason}
               onClick={() => dispatch({ type: 'redraw' })}
             >
               Trocar mão ({encounter.redrawsLeft})
             </Button>
+            {!redraw.ok && encounter.redrawsLeft > 0 && (
+              <p className="text-center text-xs text-ivory-dim">{redraw.reason}</p>
+            )}
           </div>
         </aside>
       </div>
+
+      <Modal
+        open={inspectedCard !== null}
+        onClose={() => setInspected(null)}
+        title={inspectedCard?.name ?? ''}
+      >
+        {inspectedCard && inspectedEffect && (
+          <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+            <PlayingCard
+              cardId={inspectedCard.id}
+              upgrade={hand.find((c) => c.cardId === inspectedCard.id)?.upgrade ?? 0}
+              size="md"
+              boosted={inspectedBoosted}
+            />
+            <div>
+              <p className="table-label">{RARITY_LABEL[inspectedCard.rarity]}</p>
+              <p className="mt-2 text-sm leading-relaxed text-ivory/90">{inspectedCard.concept}</p>
+              <p className="mt-3 text-sm leading-relaxed text-ivory-dim">
+                Efeito neste desafio: +{inspectedEffect.chips} fichas e +
+                {inspectedEffect.mult.toFixed(2)} de multiplicador
+                {inspectedBoosted
+                  ? ' (dobrado: o desafio usa este conceito).'
+                  : '. Dobra em desafios que usam este conceito.'}
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

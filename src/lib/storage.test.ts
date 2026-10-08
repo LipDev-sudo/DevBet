@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createProfile } from '@/engine/progression';
-import { createRun } from '@/engine/run';
+import { chooseChallenge, createRun, registerRun, saveDraft, startChallenge } from '@/engine/run';
 import { createLocalStorageRepository, parseProfile, parseRun, STORAGE_KEYS } from './storage';
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -41,7 +41,6 @@ describe('storage', () => {
     expect(parseRun({ version: 99 })).toBeNull();
     expect(parseRun({ ...sampleRun(), status: 'voando' })).toBeNull();
     expect(parseRun({ ...sampleRun(), deck: [] })).toBeNull();
-    expect(parseRun({ ...sampleRun(), status: 'won' })).toBeNull();
     expect(parseRun({ ...sampleRun(), encounter: { challengeId: 'inexistente' } })).toBeNull();
   });
 
@@ -180,5 +179,74 @@ describe('storage', () => {
       );
       expect(run?.shop?.offers).toEqual(['list', 'for', 'dictionary']);
     });
+  });
+});
+
+describe('persistência de campos novos de regra', () => {
+  it('saves sem chipsBefore/chipsAfter/forfeit (versões anteriores) continuam válidos', () => {
+    const base = createRun('logica', 3, createProfile());
+    if (!base.ok) throw new Error(base.reason);
+    const legacy = JSON.parse(JSON.stringify({ ...base.state, deck: base.state.deck.slice(0, 5) }));
+    expect(parseRun(legacy)?.deck).toHaveLength(5);
+  });
+
+  it('um desafio em andamento volta do reload com contadores e rascunho', () => {
+    const base = createRun('dados', 3, createProfile());
+    if (!base.ok) throw new Error(base.reason);
+    let run = base.state;
+    const table = chooseChallenge(run, 'calcular-total');
+    if (!table.ok) throw new Error(table.reason);
+    const started = startChallenge(table.state);
+    if (!started.ok) throw new Error(started.reason);
+    run = saveDraft(registerRun(started.state), 'def calcular_total(p, q, d):\n    return 0');
+    const restored = parseRun(JSON.parse(JSON.stringify(run)));
+    expect(restored?.encounter?.runsUsed).toBe(1);
+    expect(restored?.encounter?.draft).toMatch(/calcular_total/);
+    expect(restored?.chips).toBe(run.chips);
+    expect(restored?.deck).toHaveLength(7);
+  });
+});
+
+describe('runs encerradas sobrevivem ao reload (tela final)', () => {
+  it.each(['won', 'lost'] as const)(
+    'uma run %s é restaurada como encerrada, não em andamento',
+    (status) => {
+      const run = { ...sampleRun(), status, encounter: null, shop: null, chips: 77, score: 1234 };
+      const restored = parseRun(JSON.parse(JSON.stringify(run)));
+      expect(restored?.status).toBe(status);
+      expect(restored?.chips).toBe(77);
+      expect(restored?.score).toBe(1234);
+    },
+  );
+
+  it('preserva o motivo "abandonada"', () => {
+    const run = { ...sampleRun(), status: 'lost' as const, endReason: 'abandoned' as const };
+    expect(parseRun(JSON.parse(JSON.stringify(run)))?.endReason).toBe('abandoned');
+    expect(parseRun({ ...run, endReason: 'qualquer' })?.endReason).toBeUndefined();
+  });
+
+  it('o repositório guarda e devolve a run encerrada até ela ser dispensada', () => {
+    const storage = memoryStorage();
+    const repo = createLocalStorageRepository(storage);
+    repo.saveRun({ ...sampleRun(), status: 'won', encounter: null, shop: null });
+    expect(repo.loadRun()?.status).toBe('won');
+    repo.saveRun(null);
+    expect(repo.loadRun()).toBeNull();
+  });
+});
+
+describe('saves com histórico de desafios que não existem mais', () => {
+  it('descarta as entradas inválidas em vez de quebrar a tela final', () => {
+    const run = {
+      ...sampleRun(),
+      status: 'lost' as const,
+      history: [
+        { challengeId: 'calcular-total', score: 10, bust: false },
+        { challengeId: 'removido-no-passado', score: 5, bust: true },
+        'lixo',
+      ],
+    };
+    const restored = parseRun(JSON.parse(JSON.stringify(run)));
+    expect(restored?.history.map((h) => h.challengeId)).toEqual(['calcular-total']);
   });
 });

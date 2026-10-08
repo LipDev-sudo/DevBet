@@ -282,6 +282,25 @@ export function cardMult(card: CardDef, upgrade: number): number {
   return Math.round((card.mult + upgrade * 0.05) * 100) / 100;
 }
 
+/** Fator aplicado ao efeito da carta quando o desafio usa o conceito dela. */
+export const CONCEPT_FACTOR = 2;
+
+/**
+ * Efeito da carta na pontuação. É a única fonte do valor: o cálculo da mesa e o texto da carta usam esta função.
+ * Sempre vale; dobra quando o desafio usa o conceito (`boosted`).
+ */
+export function cardEffect(
+  card: CardDef,
+  upgrade: number,
+  boosted: boolean,
+): { chips: number; mult: number } {
+  const factor = boosted ? CONCEPT_FACTOR : 1;
+  return {
+    chips: cardChips(card, upgrade) * factor,
+    mult: Math.round(cardMult(card, upgrade) * factor * 100) / 100,
+  };
+}
+
 /** Nomes antigos (JavaScript) → conceitos atuais (Python), para migrar saves. */
 export const LEGACY_CARD_IDS: Record<string, CardId> = {
   var: 'variable',

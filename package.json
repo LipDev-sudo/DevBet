@@ -19,7 +19,16 @@
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "postinstall": "node scripts/copy-assets.mjs",
     "prebuild": "node scripts/copy-assets.mjs",
-    "predev": "node scripts/copy-assets.mjs"
+    "predev": "node scripts/copy-assets.mjs",
+    "e2e:tutorial": "node e2e/tut.js",
+    "e2e:tutorial:mobile": "node e2e/tutmob.js",
+    "e2e:edge": "node e2e/edge.js",
+    "e2e:integrity": "node e2e/hard5.js",
+    "e2e:tabs": "node e2e/audit6.js",
+    "e2e:screens": "node e2e/screens.js",
+    "e2e:keyboard": "node e2e/keyboard.js",
+    "e2e:persist": "node e2e/persist.js",
+    "e2e:sandbox": "node e2e/sandbox.js"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -38,6 +47,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.0",
+    "playwright-core": "^1.56.1",
     "postcss": "^8.5.29",
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",

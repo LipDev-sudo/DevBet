@@ -1,4 +1,4 @@
-import { cardChips, cardMult, getCard } from './cards';
+import { cardEffect, getCard } from './cards';
 import { findActiveCombos, type ActiveCombo } from './combos';
 import { evaluateHand } from './hands';
 import type { CardId, DeckCard, HandRank } from './types';
@@ -9,7 +9,7 @@ export const FAIL_PENALTY = 0.08;
 export const HINT_PENALTY = 0.1;
 export const SOLUTION_FACTOR = 0.4;
 export const MIN_PRECISION = 0.4;
-/** Máximo de tentativas falhas antes de liberar a solução explicada. */
+/** Execuções ou entregas com falha necessárias para liberar a solução explicada. */
 export const FAILURES_FOR_SOLUTION = 4;
 
 export interface ScoreInput {
@@ -69,14 +69,8 @@ export function previewHand(hand: readonly DeckCard[], concepts: readonly CardId
   const lines: CardScoreLine[] = hand.map((entry) => {
     const def = getCard(entry.cardId);
     const boosted = concepts.includes(def.id);
-    const factor = boosted ? 2 : 1;
-    return {
-      uid: entry.uid,
-      name: def.name,
-      chips: cardChips(def, entry.upgrade) * factor,
-      mult: round2(cardMult(def, entry.upgrade) * factor),
-      boosted,
-    };
+    const effect = cardEffect(def, entry.upgrade, boosted);
+    return { uid: entry.uid, name: def.name, chips: effect.chips, mult: effect.mult, boosted };
   });
   const ids = hand.map((entry) => entry.cardId);
   const rank = evaluateHand(ids);

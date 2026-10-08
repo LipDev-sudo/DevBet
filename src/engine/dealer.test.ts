@@ -6,6 +6,7 @@ import { getTableByArea, TABLES, tableLabel } from '@/content/tables';
 import { createNodeExecutor } from '@/runner/node-executor';
 import type { ExecutionReport } from '@/runner/types';
 import { briefChallenge, explainHand, reactToOutcome, reactToRun, restingMood } from './dealer';
+import { buildFeedback } from './feedback';
 import { hintBlockedReason, nextHintLevel, scoredHints } from './hints';
 import { createProfile } from './progression';
 import {
@@ -79,7 +80,7 @@ describe('escada de dicas', () => {
 
   it('a explicação só abre depois de várias tentativas falhas', () => {
     const c = getChallenge('somar-ate');
-    expect(hintBlockedReason(c, 4, 1)).toMatch(/tentativas/);
+    expect(hintBlockedReason(c, 4, 1)).toMatch(/execuções ou entregas com falha/);
     expect(hintBlockedReason(c, 4, 4)).toBeNull();
     expect(hintBlockedReason(c, 5, 9)).not.toBeNull();
   });
@@ -135,7 +136,9 @@ describe('reações do Dealer', () => {
       tests: BOSS_CHALLENGE.tests,
       timeoutMs: 300,
     });
-    expect(reactToRun({ ...base, report: r, allPassed: false }).text).toMatch(/nunca para/);
+    expect(reactToRun({ ...base, report: r, allPassed: false }).text).toMatch(
+      /não terminou a tempo/,
+    );
   });
 
   it('muitas tentativas pedem para voltar um passo, sem abrir dica sozinho', async () => {
@@ -187,7 +190,7 @@ describe('reações do Dealer', () => {
     expect(loop.efficient).toBe(false);
     expect(reactToOutcome(getChallenge('somar-ate'), loop).text).toMatch(/De primeira/);
     const boss = solve('boss-infinite-loop', BOSS_CHALLENGE.solution.code);
-    expect(reactToOutcome(BOSS_CHALLENGE, boss).text).toMatch(/não venceu por sorte/);
+    expect(reactToOutcome(BOSS_CHALLENGE, boss).text).toMatch(/O boss caiu/);
     const bust = solve('calcular-total', 'x', 9, 0);
     expect(reactToOutcome(getChallenge('calcular-total'), bust).text).toMatch(/^Bust/);
   });
@@ -205,5 +208,87 @@ describe('reações do Dealer', () => {
     expect(explainHand(previewHand(none, ['for']))).toMatch(/Nenhuma carta desta mão/);
     expect(briefChallenge(BOSS_CHALLENGE)).toMatch(/High Table/);
     expect(briefChallenge(getChallenge('somar-ate')).length).toBeLessThan(120);
+  });
+});
+
+describe('o Dealer descreve a situação real', () => {
+  const challenge = getChallenge('calcular-total');
+  const report = (code: string) => executor.run({ code, tests: challenge.tests, timeoutMs: 300 });
+  const base = { hasHidden: true, failures: 1, hintLevel: 0 };
+
+  it.each([
+    ['NameError', 'def calcular_total(p, q, d):\n    return p * qtd - d'],
+    ['TypeError', "def calcular_total(p, q, d):\n    return p + 'x'"],
+    ['ZeroDivisionError', 'def calcular_total(p, q, d):\n    return 1 / 0'],
+  ])('%s é erro de execução, não "resultado errado"', async (_name, code) => {
+    const r = await report(code);
+    const line = reactToRun({ ...base, report: r, allPassed: false });
+    expect(line.kind).toBe('runtime');
+    expect(line.text).not.toMatch(/resultado está errado/);
+    expect(line.text).toMatch(/erro/i);
+  });
+
+  it('import bloqueado explica que o módulo não é liberado', async () => {
+    const r = await report('import os\ndef calcular_total(p, q, d):\n    return 1');
+    const line = reactToRun({ ...base, report: r, allPassed: false });
+    expect(line.kind).toBe('runtime');
+    expect(line.text).toMatch(/módulo/);
+  });
+
+  it('o feedback técnico aponta o import bloqueado, não só "função não encontrada"', async () => {
+    const r = await report('import os\ndef calcular_total(p, q, d):\n    return 1');
+    const feedback = buildFeedback(challenge, r, 1);
+    expect(feedback.title).toBe('Módulo indisponível');
+    expect(feedback.cause).toMatch(/os/);
+  });
+
+  it('a regra de "voltar um passo" só vale para respostas erradas, não esconde sintaxe, erro ou timeout', async () => {
+    const syntax = await report('def calcular_total(:\n    pass');
+    const crash = await report('def calcular_total(p, q, d):\n    return 1 / 0');
+    const wrong = await report('def calcular_total(p, q, d):\n    return -1');
+    const third = { ...base, failures: 3, allPassed: false };
+    expect(reactToRun({ ...third, report: syntax }).kind).toBe('syntax');
+    expect(reactToRun({ ...third, report: crash }).kind).toBe('runtime');
+    expect(reactToRun({ ...third, report: wrong }).kind).toBe('retry');
+  });
+
+  describe('Bust pela causa real', () => {
+    const entered = () =>
+      startChallenge(
+        unwrap(chooseChallenge(unwrap(createRun('logica', 4, createProfile())), 'calcular-total')),
+      );
+    const outcome = (mutate?: (r: RunState) => RunState) =>
+      resolveEncounter(mutate ? mutate(unwrap(entered())) : unwrap(entered()), createProfile()).run
+        .encounter!.outcome!;
+
+    it('precisão perdida: cita entregas erradas e dicas e a precisão', () => {
+      const o = outcome((r) => {
+        let next = r;
+        for (let i = 0; i < 9; i++) next = registerFailure(next, 'submit');
+        return next;
+      });
+      expect(o.bust).toBe(true);
+      const text = reactToOutcome(getChallenge('calcular-total'), o).text;
+      expect(text).toMatch(/entregas erradas e dicas/);
+      expect(text).toMatch(/×0\.40/);
+    });
+
+    it('mão fraca: não culpa erros nem dicas quando a precisão está intacta', () => {
+      const o = outcome();
+      const weak = {
+        ...o,
+        bust: true,
+        score: { ...o.score, precision: 1, total: 100 },
+        target: 480,
+      };
+      const text = reactToOutcome(getChallenge('calcular-total'), weak).text;
+      expect(text).toMatch(/a mão rendeu só 100 de 480/);
+      expect(text).not.toMatch(/erros e dicas custaram/i);
+    });
+
+    it('desistência é descrita como desistência', () => {
+      const o = { ...outcome(), bust: true, forfeit: true };
+      expect(reactToOutcome(getChallenge('calcular-total'), o).text).toMatch(/desistiu/);
+    });
   });
 });

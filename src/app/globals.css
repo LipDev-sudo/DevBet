@@ -214,6 +214,11 @@ body {
       background-color 0.15s ease,
       border-color 0.15s ease;
   }
+  /* Indisponível mas clicável: tocar mostra o motivo no aviso (importante no celular, sem hover). */
+  .btn[aria-disabled='true'] {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
   .btn:disabled {
     cursor: not-allowed;
     opacity: 0.4;
@@ -406,6 +411,39 @@ body {
   font-weight: 700;
   font-size: 9cqw;
   text-align: center;
+}
+
+/* Tutorial: destaque discreto no elemento da lição (sem escurecer a tela nem bloquear cliques). */
+.tutorial-spot {
+  outline: 1px solid rgb(236 230 216 / 0.8);
+  outline-offset: 5px;
+  border-radius: 10px;
+  animation: spot-pulse 2.4s ease-in-out infinite;
+}
+@keyframes spot-pulse {
+  0%,
+  100% {
+    outline-color: rgb(236 230 216 / 0.3);
+  }
+  50% {
+    outline-color: rgb(236 230 216 / 0.85);
+  }
+}
+.tutorial-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background: var(--color-ivory);
+  animation: spot-pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes spot-pulse-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 * {

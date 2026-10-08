@@ -1,8 +1,9 @@
 /**
- * Pontos de integração de áudio. Nenhum som é tocado por padrão: o jogo só avisa que algo aconteceu.
- * Para ligar áudio no futuro, registre um handler (ex.: Howler, WebAudio) com `setSfxHandler`.
+ * Pontos de integração de áudio. O DevBet NÃO distribui áudio: não há assets, então nenhum som toca
+ * e a interface não promete som. Os eventos abaixo já são disparados nos pontos do jogo; para ligar
+ * áudio no futuro, registre um handler (ex.: Howler, WebAudio) com `setSfxHandler`.
  */
-export type SfxEvent = 'deal' | 'select' | 'combo' | 'correct' | 'error' | 'boss' | 'victory';
+export type SfxEvent = 'deal' | 'select' | 'combo' | 'correct' | 'error' | 'boss';
 
 type SfxHandler = (event: SfxEvent) => void;
 

@@ -8,7 +8,7 @@ export const RUN_LIMITS = {
   loadTimeoutMs: 30_000,
   /** Tamanho máximo do código, em caracteres. */
   maxCodeLength: 4000,
-  /** Execuções máximas por desafio (EXECUTAR + ENTREGAR). */
+  /** Execuções de teste (Executar) por desafio. Entregar não é limitado por este total. */
   maxRunsPerChallenge: 60,
   /** Intervalo mínimo entre execuções (ms). */
   cooldownMs: 600,

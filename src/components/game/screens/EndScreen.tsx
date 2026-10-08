@@ -12,16 +12,23 @@ import { xpProgress } from '@/engine/progression';
 import { useGame } from '../GameProvider';
 
 /** Explica a derrota em termos de causa: precisão, ajuda ou falta de conceitos na mão. */
-function lossAdvice(entry: { failedRuns?: number; hintLevel?: number; risk?: string }): string {
-  const failed = entry.failedRuns ?? 0;
+function lossAdvice(entry: {
+  failedSubmissions?: number;
+  hintLevel?: number;
+  forfeit?: boolean;
+}): string {
+  const failedSubmissions = entry.failedSubmissions ?? 0;
   const help = entry.hintLevel ?? 0;
-  if (help >= 4 || failed >= 4) {
-    return 'Tentativas erradas e ajuda pesada reduzem a pontuação. Reler o erro antes de rodar de novo costuma custar menos.';
+  if (entry.forfeit) {
+    return 'Você desistiu do desafio. Teste com Executar à vontade, que não custa pontos, antes de desistir.';
   }
-  if (failed > 0 || help > 0) {
-    return 'Erros e dicas custaram pontos. Antes de pedir ajuda, releia a mensagem do teste: ela diz o que ficou diferente.';
+  if (help >= 4 || failedSubmissions >= 3) {
+    return 'Dicas pagas e entregas erradas reduzem a precisão. Use Executar para testar à vontade e só entregue quando os testes visíveis passarem.';
   }
-  return 'Seu código passou, mas a mão tinha poucos conceitos deste desafio. Escolha cartas que combinem com a mesa e procure combos.';
+  if (failedSubmissions > 0 || help > 1) {
+    return 'Entregas erradas e dicas pagas custaram pontos. Releia a mensagem do teste antes de pedir ajuda: ela diz o que ficou diferente.';
+  }
+  return 'Seu código passou, mas a mão tinha poucos conceitos deste desafio. Escolha cartas que combinem com a mesa e procure combos de conceitos.';
 }
 
 const highTable = TABLES[TABLES.length - 1]!;
@@ -31,6 +38,7 @@ export function EndScreen() {
   const run = state.run;
   if (!run) return null;
   const won = run.status === 'won';
+  const abandoned = run.endReason === 'abandoned';
   const xp = xpProgress(state.profile.xp);
   const lastBust = [...run.history].reverse().find((h) => h.bust);
   const solvedCount = run.history.filter((h) => !h.bust).length;
@@ -49,7 +57,7 @@ export function EndScreen() {
           <h1
             className={`mt-2 text-5xl font-black tracking-tight sm:text-6xl ${won ? 'text-ivory' : 'text-crimson-hot'}`}
           >
-            {won ? 'JACKPOT' : 'BUST'}
+            {won ? 'JACKPOT' : abandoned ? 'RUN ABANDONADA' : 'BUST'}
           </h1>
           <Dealer
             mood={won ? 'success' : 'serious'}
@@ -60,22 +68,25 @@ export function EndScreen() {
           <DealerDialogue
             avatar={false}
             className="-mt-2 max-w-md text-left"
-            kind={won ? 'success' : 'bust'}
+            kind={won ? 'success' : abandoned ? undefined : 'bust'}
             mood={won ? 'success' : 'serious'}
             tone="severe"
             text={
               won
-                ? 'Boa mão. Você não venceu por sorte.'
-                : 'A casa levou esta run. Revise o que errou e volte com um baralho melhor.'
+                ? 'Boa mão. A casa perdeu desta vez.'
+                : abandoned
+                  ? 'Você abandonou a run. O XP que você ganhou continua salvo.'
+                  : 'A casa levou esta run. Revise o que errou e volte com um baralho melhor.'
             }
           />
         </div>
       </TableEnvironment>
 
-      <dl className="mx-auto mt-8 grid max-w-xl grid-cols-3 gap-4">
+      <dl className="mx-auto mt-8 grid max-w-xl grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           ['Pontuação', String(run.score)],
           ['XP ganho', `+${run.xpEarned}`],
+          ['Fichas ao fim', String(run.chips)],
           ['Nível', String(xp.level)],
         ].map(([label, value]) => (
           <div key={label} className="panel rounded-lg px-3 py-4">
@@ -87,7 +98,7 @@ export function EndScreen() {
         ))}
       </dl>
 
-      {!won && lastBust && (
+      {!won && !abandoned && lastBust && (
         <section
           aria-labelledby="motivo-titulo"
           className="panel mx-auto mt-6 max-w-xl p-5 text-left"
@@ -97,7 +108,7 @@ export function EndScreen() {
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-ivory/90">
             Em <strong>{getChallenge(lastBust.challengeId).title}</strong> você fez{' '}
-            <strong>{lastBust.score} pts</strong> e a meta era{' '}
+            <strong>{lastBust.forfeit ? 0 : lastBust.score} pts</strong> e a meta era{' '}
             <strong>{lastBust.target ?? '—'}</strong>. Foi o Bust que acabou com suas vidas.
           </p>
           <p className="mt-2 text-sm leading-relaxed text-ivory-dim">{lossAdvice(lastBust)}</p>
@@ -138,7 +149,7 @@ export function EndScreen() {
       </section>
 
       <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-        <Button onClick={() => dispatch({ type: 'dismiss-run' })}>
+        <Button data-tutorial="new-run" onClick={() => dispatch({ type: 'dismiss-run' })}>
           {won ? 'Nova run' : 'Tentar novamente'}
         </Button>
         <Link href="/colecao" className="btn btn-ghost">

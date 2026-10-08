@@ -27,7 +27,7 @@ export function Lobby() {
 
   const current = tableForLayer(run.layerIndex);
   const tableLayers = RUN_LAYERS.filter((l) => l.kind !== 'shop');
-  const opened = Math.min(tableLayers.length, run.history.filter((h) => !h.bust).length + 1);
+  const position = RUN_LAYERS.slice(0, run.layerIndex + 1).filter((l) => l.kind !== 'shop').length;
 
   // Índice no histórico e requisito de desbloqueio de cada mesa da trilha.
   const historyAt = new Map<number, number>();
@@ -50,7 +50,7 @@ export function Lobby() {
           THE HOUSE
         </h1>
         <p className="mt-2 text-sm text-ivory-dim">
-          {opened} de {tableLayers.length} mesas abertas
+          Mesa {position} de {tableLayers.length}
         </p>
       </header>
 
@@ -98,11 +98,6 @@ export function Lobby() {
                 <p className={`mt-1 text-sm ${locked ? 'text-ivory-dim/70' : 'text-ivory-dim'}`}>
                   {table.topics}
                 </p>
-                {table.planned.length > 0 && (
-                  <p className="mt-0.5 text-xs text-ivory-dim/60">
-                    Em breve: {table.planned.join(', ')}
-                  </p>
-                )}
               </div>
               <p className="shrink-0 text-right text-xs">
                 {done && entry ? (
@@ -114,7 +109,7 @@ export function Lobby() {
                 ) : (
                   <span className="text-ivory-dim">
                     <span aria-hidden="true">🔒 </span>
-                    Complete {requirement ?? 'a mesa anterior'}
+                    Depois de {requirement ?? 'a mesa anterior'}
                   </span>
                 )}
               </p>
@@ -130,7 +125,7 @@ export function Lobby() {
                 <TableEnvironment table={table} showLabel={false} feltHeight="55%">
                   <div className="p-4 sm:p-5">
                     {info}
-                    <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <ul className="mt-4 grid gap-3 sm:grid-cols-2" data-tutorial="choices">
                       {layer.options.map((id) => {
                         const challenge = getChallenge(id);
                         return (
@@ -182,20 +177,6 @@ export function Lobby() {
           );
         })}
       </ol>
-
-      <div className="mt-12 text-center">
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm('Abandonar a run atual? O progresso desta run será perdido.')) {
-              dispatch({ type: 'abandon-run' });
-            }
-          }}
-          className="text-xs text-ivory-dim underline-offset-4 hover:text-crimson-hot hover:underline"
-        >
-          Abandonar run
-        </button>
-      </div>
     </div>
   );
 }

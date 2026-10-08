@@ -1,10 +1,12 @@
 import { getChallenge } from '@/content/challenges';
 import { RUN_LAYERS, type MapLayer } from '@/content/map';
 import { getCard, CARDS, RARITY_WEIGHT } from './cards';
+import { COMBOS } from './combos';
 import { hintBlockedReason, nextHintLevel, scoredHints } from './hints';
 import { levelFromXp, type Profile } from './progression';
 import { createRng, shuffle, weightedSample, type Rng } from './rng';
 import { computeScore, type ScoreBreakdown } from './scoring';
+import { initialTutorial, type TutorialState } from './tutorial-state';
 import type { CardId, DeckCard } from './types';
 
 export const HAND_SIZE = 5;
@@ -49,19 +51,19 @@ export const STARTER_PACKS: readonly StarterPack[] = [
     id: 'logica',
     name: 'Pacote Lógica',
     tagline: 'Decisões afiadas: BOOLEAN e CONDITION formam um LOGIC GATE nas mesas de lógica.',
-    cards: ['variable', 'operator', 'boolean', 'condition', 'function'],
+    cards: ['variable', 'operator', 'boolean', 'condition', 'function', 'for', 'return'],
   },
   {
     id: 'dados',
     name: 'Pacote Dados',
     tagline: 'Coleções: LIST + FOR formam um ITERATOR, e DICTIONARY + FOR um COUNTER.',
-    cards: ['variable', 'for', 'list', 'dictionary', 'condition'],
+    cards: ['variable', 'for', 'list', 'dictionary', 'condition', 'operator', 'function'],
   },
   {
     id: 'funcoes',
     name: 'Pacote Funções',
     tagline: 'FUNCTION, PARAMETER e RETURN: o esqueleto de todo código que você escreve.',
-    cards: ['variable', 'operator', 'function', 'parameter', 'return'],
+    cards: ['variable', 'operator', 'function', 'parameter', 'return', 'condition', 'list'],
   },
 ];
 
@@ -77,10 +79,15 @@ export interface EncounterOutcome {
   jackpot: boolean;
   /** O código enviado casa com o padrão de solução eficiente do desafio. */
   efficient: boolean;
+  /** Fichas de recompensa pela vitória (a aposta volta à parte). 0 no Bust. */
   chipsGained: number;
-  /** Variação líquida de fichas pela aposta: positiva no ganho, negativa no bust. */
-  /** Perda líquida de fichas pela aposta: 0 ao vencer (a aposta volta), negativa no Bust. */
+  /** Fichas perdidas pela aposta: 0 ao vencer (ela volta), negativo no Bust. */
   stakeDelta: number;
+  /** Saldo antes de a aposta sair e depois de o resultado ser aplicado. Opcionais: saves antigos não têm. */
+  chipsBefore?: number;
+  chipsAfter?: number;
+  /** O jogador desistiu do desafio: conta como Bust, com pontuação zero. */
+  forfeit?: boolean;
   risk: RiskLevel;
   xpGained: number;
   livesLost: number;
@@ -128,6 +135,10 @@ export interface RunState {
   deck: DeckCard[];
   encounter: Encounter | null;
   shop: ShopState | null;
+  /** Presente só na Tutorial Run (a primeira do jogador). As regras são as mesmas da run normal. */
+  tutorial?: TutorialState | null;
+  /** Como a run acabou, quando não foi por vitória ou derrota. */
+  endReason?: 'abandoned';
   history: {
     challengeId: string;
     score: number;
@@ -135,8 +146,10 @@ export interface RunState {
     /** Contexto do resultado, para explicar a derrota. */
     target?: number;
     failedRuns?: number;
+    failedSubmissions?: number;
     hintLevel?: number;
     risk?: RiskLevel;
+    forfeit?: boolean;
   }[];
 }
 
@@ -193,16 +206,81 @@ export function createRun(packId: string, seed: number, profile: Profile): Resul
     deck,
     encounter: null,
     shop: null,
+    tutorial: profile.tutorialCompleted ? null : initialTutorial(),
     history: [],
   });
 }
 
 /* ------------------------------------------------------------------ mão */
 
-export function dealHand(deck: readonly DeckCard[], rng: Rng, size = HAND_SIZE): string[] {
-  return shuffle(deck, rng)
+export function dealHand(
+  deck: readonly DeckCard[],
+  rng: Rng,
+  size = HAND_SIZE,
+  /** Mão atual: a nova mão nunca é o mesmo conjunto de cartas (quando o baralho permite). */
+  avoid?: readonly string[],
+): string[] {
+  const hand = shuffle(deck, rng)
     .slice(0, size)
     .map((card) => card.uid);
+  if (!avoid || deck.length <= size) return hand;
+  const same = hand.length === avoid.length && hand.every((uid) => avoid.includes(uid));
+  if (!same) return hand;
+  const outside = deck.find((card) => !hand.includes(card.uid));
+  return outside ? [outside.uid, ...hand.slice(1)] : hand;
+}
+
+/** A troca de mão só faz sentido se o baralho tiver cartas fora da mão. */
+export function canRedraw(state: RunState): { ok: true } | { ok: false; reason: string } {
+  const encounter = state.encounter;
+  if (state.status !== 'table' || !encounter) {
+    return { ok: false, reason: 'Só é possível trocar a mão na mesa.' };
+  }
+  if (encounter.redrawsLeft <= 0) return { ok: false, reason: 'Você já usou a troca desta mesa.' };
+  if (state.deck.length <= HAND_SIZE) {
+    return {
+      ok: false,
+      reason: `Seu baralho tem ${state.deck.length} cartas e a mão usa ${HAND_SIZE}: não há cartas novas para trocar. Ganhe ou compre cartas.`,
+    };
+  }
+  return { ok: true };
+}
+
+/** Baralho da Tutorial Run: o único que traz o combo do primeiro desafio na mão por construção. */
+export const TUTORIAL_PACK_ID = 'funcoes';
+
+/**
+ * Só na primeira mesa da Tutorial Run: as duas cartas de um combo real (que o desafio usa e que o baralho
+ * tem) entram na mão. As demais cartas e todas as runs normais seguem o sorteio de sempre.
+ */
+function tutorialComboCards(state: RunState, challengeId: string): DeckCard[] | null {
+  if (!state.tutorial || state.history.length > 0) return null;
+  const concepts = getChallenge(challengeId).concepts;
+  for (const combo of COMBOS) {
+    const [a, b] = combo.requires;
+    const first = state.deck.find((card) => card.cardId === a);
+    const second = state.deck.find((card) => card.cardId === b);
+    if (first && second && concepts.includes(a) && concepts.includes(b)) return [first, second];
+  }
+  return null;
+}
+
+function dealFor(state: RunState, challengeId: string, rng: Rng, avoid?: readonly string[]) {
+  const needed = tutorialComboCards(state, challengeId);
+  if (!needed) return dealHand(state.deck, rng, HAND_SIZE, avoid);
+  const rest = state.deck.filter((card) => !needed.some((n) => n.uid === card.uid));
+  const others = dealHand(rest, rng, HAND_SIZE - needed.length);
+  const hand = shuffle([...needed.map((card) => card.uid), ...others], rng);
+  const same = avoid && hand.length === avoid.length && hand.every((uid) => avoid.includes(uid));
+  if (same) {
+    // Mantém o combo e troca uma das outras cartas por uma que ficou de fora.
+    const outside = rest.find((card) => !others.includes(card.uid));
+    if (outside) {
+      const swapped = others[0];
+      return hand.map((uid) => (uid === swapped ? outside.uid : uid));
+    }
+  }
+  return hand;
 }
 
 function newEncounter(state: RunState, challengeId: string): RunState {
@@ -213,7 +291,7 @@ function newEncounter(state: RunState, challengeId: string): RunState {
     status: 'table',
     encounter: {
       challengeId,
-      hand: dealHand(state.deck, rng),
+      hand: dealFor(state, challengeId, rng),
       redrawsLeft: 1,
       risk: 'safe',
       failedRuns: 0,
@@ -238,16 +316,16 @@ export function chooseChallenge(state: RunState, challengeId: string): Result<Ru
 }
 
 export function redrawHand(state: RunState): Result<RunState> {
-  const encounter = state.encounter;
-  if (state.status !== 'table' || !encounter) return fail('Só é possível trocar a mão na mesa.');
-  if (encounter.redrawsLeft <= 0) return fail('Você já usou a troca desta mesa.');
+  const allowed = canRedraw(state);
+  if (!allowed.ok) return fail(allowed.reason);
+  const encounter = state.encounter as Encounter;
   const rng = rngFor(state);
   return ok({
     ...state,
     step: state.step + 1,
     encounter: {
       ...encounter,
-      hand: dealHand(state.deck, rng),
+      hand: dealFor(state, encounter.challengeId, rng, encounter.hand),
       redrawsLeft: encounter.redrawsLeft - 1,
     },
   });
@@ -345,12 +423,13 @@ export function chipRewardFor(
 export function computeOutcome(
   state: RunState,
   rng: Rng,
+  forfeit = false,
 ): { outcome: EncounterOutcome; livesLeft: number } {
   const encounter = state.encounter;
   if (!encounter) throw new Error('Nenhum desafio em andamento.');
   const challenge = getChallenge(encounter.challengeId);
   const hand = encounter.hand.map((uid) => deckEntry(state, uid));
-  const score = computeScore({
+  const computed = computeScore({
     basePoints: challenge.basePoints,
     concepts: challenge.concepts,
     hand,
@@ -359,11 +438,14 @@ export function computeOutcome(
     voluntaryHints: encounter.voluntaryHints,
     solutionViewed: encounter.solutionViewed,
   });
+  // Desistir não pontua: a mão e a precisão continuam visíveis, mas o total é zero.
+  const score = forfeit ? { ...computed, total: 0 } : computed;
   const bust = score.total < challenge.target;
   const highRoll = !bust && score.total >= challenge.target * 2;
+  // Jackpot: entrega aprovada de primeira, sem dicas pagas. Executar para testar não tira o Jackpot.
   const jackpot =
     !bust &&
-    encounter.failedRuns === 0 &&
+    encounter.failedSubmissions === 0 &&
     encounter.voluntaryHints === 0 &&
     !encounter.solutionViewed;
   const royal = score.rank.id === 'royal-flush';
@@ -377,13 +459,17 @@ export function computeOutcome(
         chipRewardFor(challenge.chipReward, { jackpot, highRoll, royal }) * risk.multiplier,
       );
   const stakeDelta = bust ? -risk.wager : 0;
-  const xpGained = Math.round(challenge.xp * (bust ? 0.5 : 1)) + (jackpot ? 10 : 0);
+  const chipsBefore = state.chips + risk.wager;
+  const chipsAfter = state.chips + chipsGained + (bust ? 0 : risk.wager);
+  const xpGained = forfeit ? 0 : Math.round(challenge.xp * (bust ? 0.5 : 1)) + (jackpot ? 10 : 0);
   const livesLost = bust ? 1 : 0;
 
   const owned = new Set(state.deck.map((card) => card.cardId));
-  const rewardOptions = bust
-    ? []
-    : pickOffers(owned, state.unlockLevel, 3, rng, challenge.boss ? 'rare' : 'common');
+  // Sem Bust e fora do boss, a casa oferece até 3 cartas que você ainda não tem e seu nível já libera.
+  // O boss termina a run: não há baralho a melhorar, então não oferece carta. Se a lista vem vazia,
+  // não há escolha a fazer (a interface diz isso); nunca se inventa uma carta.
+  const rewardOptions =
+    bust || challenge.boss ? [] : pickOffers(owned, state.unlockLevel, 3, rng, 'common');
 
   return {
     livesLeft: state.lives - livesLost,
@@ -396,6 +482,9 @@ export function computeOutcome(
       efficient,
       chipsGained,
       stakeDelta,
+      chipsBefore,
+      chipsAfter,
+      forfeit: forfeit || undefined,
       risk: encounter.risk,
       xpGained,
       livesLost,
@@ -434,11 +523,30 @@ export function resolveEncounter(
   state: RunState,
   profile: Profile,
 ): { run: RunState; profile: Profile } {
+  return settleEncounter(state, profile, false);
+}
+
+/**
+ * Desistir do desafio: é sempre uma saída válida. Conta como Bust (−1 vida, aposta perdida, sequência zerada)
+ * e não pontua. Não depende de execuções restantes.
+ */
+export function forfeitEncounter(
+  state: RunState,
+  profile: Profile,
+): { run: RunState; profile: Profile } {
+  return settleEncounter(state, profile, true);
+}
+
+function settleEncounter(
+  state: RunState,
+  profile: Profile,
+  forfeit: boolean,
+): { run: RunState; profile: Profile } {
   if (state.status !== 'challenge' || !state.encounter) {
     throw new Error('Nenhum desafio em andamento para resolver.');
   }
   const rng = rngFor(state);
-  const { outcome, livesLeft } = computeOutcome(state, rng);
+  const { outcome, livesLeft } = computeOutcome(state, rng, forfeit);
   const challengeId = state.encounter.challengeId;
   const previous = profile.solved[challengeId];
   const payout = outcome.bust ? 0 : RISK_LEVELS[state.encounter.risk].wager;
@@ -463,8 +571,10 @@ export function resolveEncounter(
         bust: outcome.bust,
         target: outcome.target,
         failedRuns: state.encounter.failedRuns,
+        failedSubmissions: state.encounter.failedSubmissions,
         hintLevel: state.encounter.hintLevel,
         risk: state.encounter.risk,
+        forfeit: forfeit || undefined,
       },
     ],
   };
@@ -510,7 +620,8 @@ export function claimReward(state: RunState, cardId: CardId | null): Result<RunS
   if (cardId !== null) {
     if (!outcome.rewardOptions.includes(cardId)) return fail('Essa carta não está na oferta.');
     next = addCard(next, cardId);
-  } else if (!outcome.bust) {
+  } else if (!outcome.bust && !getChallenge(encounter.challengeId).boss) {
+    // Sem carta (por escolha ou por falta de cartas novas), a casa paga fichas. A vitória no boss não paga: a run acaba.
     next = { ...next, chips: next.chips + SKIP_REWARD_CHIPS };
   }
 
@@ -636,6 +747,8 @@ export function finishRunProfile(profile: Profile, run: RunState): Profile {
     ...profile,
     runsPlayed: profile.runsPlayed + 1,
     runsWon: profile.runsWon + (run.status === 'won' ? 1 : 0),
+    // Terminar a Tutorial Run (vencendo, perdendo ou abandonando) a conclui: ela nunca volta.
+    tutorialCompleted: profile.tutorialCompleted || Boolean(run.tutorial),
     bestRunScore: Math.max(profile.bestRunScore, run.score),
     seenCards: [...new Set([...profile.seenCards, ...run.deck.map((card) => card.cardId)])],
   };

@@ -1,3 +1,4 @@
+import { CARDS } from './cards';
 import type { CardDef } from './types';
 
 /** Progresso permanente do jogador, entre runs. */
@@ -11,6 +12,8 @@ export interface Profile {
   solved: Record<string, { best: number; times: number }>;
   /** Cartas já vistas: alimenta a coleção. */
   seenCards: string[];
+  /** Já terminou a Tutorial Run (a primeira run). */
+  tutorialCompleted: boolean;
 }
 
 export function createProfile(): Profile {
@@ -22,6 +25,7 @@ export function createProfile(): Profile {
     bestRunScore: 0,
     solved: {},
     seenCards: [],
+    tutorialCompleted: false,
   };
 }
 
@@ -53,4 +57,9 @@ export function xpProgress(xp: number): XpProgress {
 
 export function isUnlocked(card: CardDef, level: number): boolean {
   return card.unlockLevel <= level;
+}
+
+/** Cartas que passam a poder aparecer em lojas e recompensas ao ir de `from` para `to`. */
+export function cardsUnlockedBetween(from: number, to: number): CardDef[] {
+  return CARDS.filter((card) => card.unlockLevel > from && card.unlockLevel <= to);
 }

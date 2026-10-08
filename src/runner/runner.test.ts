@@ -207,17 +207,34 @@ describe('isolamento do código Python', () => {
 });
 
 describe('guarda de execuções', () => {
-  const base = { code: 'x', runsUsed: 0, lastRunAt: null, now: 10_000 };
+  const base = { kind: 'run' as const, code: 'x', runsUsed: 0, lastRunAt: null, now: 10_000 };
+  const max = RUN_LIMITS.maxRunsPerChallenge;
   it('aceita uso normal', () => expect(checkRunAllowed(base)).toBeNull());
   it('recusa código vazio', () => expect(checkRunAllowed({ ...base, code: '  ' })).toBe('empty'));
   it('recusa código grande', () =>
     expect(checkRunAllowed({ ...base, code: 'a'.repeat(RUN_LIMITS.maxCodeLength + 1) })).toBe(
       'too-long',
     ));
-  it('recusa excesso de execuções', () =>
-    expect(checkRunAllowed({ ...base, runsUsed: RUN_LIMITS.maxRunsPerChallenge })).toBe(
-      'too-many-runs',
-    ));
   it('aplica cooldown', () =>
     expect(checkRunAllowed({ ...base, lastRunAt: 9_900 })).toBe('cooldown'));
+
+  it('Executar: a 59ª e a 60ª execuções passam; a 61ª é recusada', () => {
+    expect(checkRunAllowed({ ...base, runsUsed: max - 2 })).toBeNull(); // vai fazer a 59ª
+    expect(checkRunAllowed({ ...base, runsUsed: max - 1 })).toBeNull(); // vai fazer a 60ª
+    expect(checkRunAllowed({ ...base, runsUsed: max })).toBe('too-many-runs'); // tentaria a 61ª
+    expect(checkRunAllowed({ ...base, runsUsed: max + 10 })).toBe('too-many-runs');
+  });
+
+  it('Entregar nunca é bloqueado pelo total de execuções (sem soft-lock)', () => {
+    for (const runsUsed of [max - 1, max, max + 1, 10_000]) {
+      expect(checkRunAllowed({ ...base, kind: 'submit', runsUsed })).toBeNull();
+    }
+  });
+
+  it('Entregar continua respeitando só recusas temporárias', () => {
+    const submit = { ...base, kind: 'submit' as const, runsUsed: max };
+    expect(checkRunAllowed({ ...submit, code: '' })).toBe('empty');
+    expect(checkRunAllowed({ ...submit, lastRunAt: 9_900 })).toBe('cooldown');
+    expect(checkRunAllowed({ ...submit, lastRunAt: 9_000 })).toBeNull(); // passado o cooldown, entrega
+  });
 });

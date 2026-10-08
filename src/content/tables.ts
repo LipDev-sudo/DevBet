@@ -17,8 +17,6 @@ export interface TableDef {
   ambient: { glow: string; glowOpacity: number; vignette: number; rail: string };
   /** Materiais e decoração da mesa. Cada uma precisa parecer um lugar diferente. */
   scene: TableScene;
-  /** Conteúdos previstos que ainda não têm desafio (a mesa já está preparada para recebê-los). */
-  planned: string[];
   /** Fala do Dealer ao apresentar a mesa. */
   intro: string;
 }
@@ -65,7 +63,6 @@ export const TABLES: readonly TableDef[] = [
       inlay: 'none',
       inlayColor: 'transparent',
     },
-    planned: [],
     intro: 'Bem-vindo. A gente começa pelo básico: valores, tipos e operadores.',
   },
   {
@@ -91,7 +88,6 @@ export const TABLES: readonly TableDef[] = [
       inlay: 'fork',
       inlayColor: 'rgb(236 230 216 / 0.2)',
     },
-    planned: ['match (Python 3.10+)'],
     intro: 'Mesa 02. Agora o código toma decisões. Preste atenção nas condições.',
   },
   {
@@ -117,7 +113,6 @@ export const TABLES: readonly TableDef[] = [
       inlay: 'rings',
       inlayColor: 'rgb(236 230 216 / 0.16)',
     },
-    planned: [],
     intro: 'Mesa 03. Repetição. Quem domina o loop aprende a não repetir código.',
   },
   {
@@ -143,7 +138,6 @@ export const TABLES: readonly TableDef[] = [
       inlay: 'lattice',
       inlayColor: 'rgb(236 230 216 / 0.18)',
     },
-    planned: ['strings', 'tuplas'],
     intro:
       'Mesa 04. Dados. Listas, dicionários e conjuntos guardam o que o seu código precisa lembrar.',
   },
@@ -165,7 +159,6 @@ export const TABLES: readonly TableDef[] = [
       inlay: 'tree',
       inlayColor: 'rgb(201 162 74 / 0.28)',
     },
-    planned: ['busca binária', 'ordenação', 'dois ponteiros', 'complexidade'],
     intro: 'Mesa 05. Algoritmos: recursão e busca. Aqui os erros custam mais caro.',
   },
   {
@@ -186,7 +179,6 @@ export const TABLES: readonly TableDef[] = [
       inlay: 'crest',
       inlayColor: 'rgb(201 162 74 / 0.5)',
     },
-    planned: [],
     intro: 'High Table. Dois bugs, e um deles trava tudo. Leia antes de mexer.',
   },
 ];

@@ -1,4 +1,6 @@
 import type { CardId } from '@/engine/types';
+import { reduceTutorial } from '@/engine/tutorial';
+import type { TutorialEvent } from '@/engine/tutorial-state';
 import { levelFromXp, type Profile } from '@/engine/progression';
 import {
   buyCard,
@@ -7,6 +9,7 @@ import {
   claimReward,
   createRun,
   finishRunProfile,
+  forfeitEncounter,
   leaveShop,
   redrawHand,
   registerFailure,
@@ -18,6 +21,7 @@ import {
   saveDraft,
   setRisk,
   startChallenge,
+  TUTORIAL_PACK_ID,
   upgradeCard,
   type Result,
   type RiskLevel,
@@ -30,8 +34,8 @@ export interface GameState {
   run: RunState | null;
   /** Mensagem de erro de regra (ex.: fichas insuficientes) para exibir ao jogador. */
   notice: { id: number; text: string } | null;
-  /** Nível alcançado no último desafio, se houve subida. */
-  levelUp: number | null;
+  /** Níveis do perfil antes e depois do último desafio, se houve subida. */
+  levelUp: { from: number; to: number } | null;
 }
 
 export type GameAction =
@@ -48,6 +52,7 @@ export type GameAction =
   | { type: 'failed'; kind: 'run' | 'submit' }
   | { type: 'hint' }
   | { type: 'resolve' }
+  | { type: 'forfeit' }
   | { type: 'claim'; cardId: CardId | null }
   | { type: 'buy'; cardId: CardId }
   | { type: 'reroll' }
@@ -55,6 +60,7 @@ export type GameAction =
   | { type: 'remove'; uid: string }
   | { type: 'buy-life' }
   | { type: 'leave-shop' }
+  | { type: 'tutorial'; event: TutorialEvent }
   | { type: 'clear-notice' }
   | { type: 'reset'; profile: Profile };
 
@@ -82,20 +88,84 @@ function withRun(state: GameState, fn: (run: RunState) => RunState): GameState {
   return state.run ? { ...state, run: fn(state.run) } : state;
 }
 
+/** Ações do jogo que o tutorial enxerga como eventos reais. */
+function tutorialEventFor(action: GameAction): TutorialEvent | null {
+  switch (action.type) {
+    case 'tutorial':
+      return action.event;
+    case 'choose':
+      return { kind: 'chose' };
+    case 'start':
+      return { kind: 'started' };
+    case 'resolve':
+    case 'forfeit':
+      return { kind: 'resolved' };
+    case 'claim':
+      return { kind: 'claimed' };
+    case 'buy':
+      return { kind: 'bought' };
+    case 'leave-shop':
+      return { kind: 'left-shop' };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Só avança o tutorial quando a ação REALMENTE mudou a run (uma recusa de regra vira aviso e não conta).
+ * A lição concluída é a que estava ativa antes da ação.
+ */
+/** Depois que a run termina, só dá para dispensá-la ou começar outra: nada da run antiga volta a mudar. */
+const ALLOWED_AFTER_END = new Set<GameAction['type']>([
+  'hydrate',
+  'new-run',
+  'dismiss-run',
+  'clear-notice',
+  'reset',
+]);
+
 export function gameReducer(state: GameState, action: GameAction): GameState {
+  const before = state.run;
+  if (before && FINAL.has(before.status) && !ALLOWED_AFTER_END.has(action.type)) return state;
+  if (action.type === 'tutorial') {
+    if (!before?.tutorial) return state;
+    return { ...state, run: { ...before, tutorial: reduceTutorial(before, action.event) } };
+  }
+  const next = reduceGame(state, action);
+  const event = tutorialEventFor(action);
+  if (!event || !before?.tutorial || !next.run || next.run === before) return next;
+  return { ...next, run: { ...next.run, tutorial: reduceTutorial(before, event) } };
+}
+
+function reduceGame(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'hydrate':
       return { ...state, hydrated: true, profile: action.profile, run: action.run };
     case 'new-run': {
-      const created = createRun(action.packId, action.seed, state.profile);
+      // Na primeira run o baralho é o da Tutorial Run; depois, vale a escolha do jogador.
+      const packId = state.profile.tutorialCompleted ? action.packId : TUTORIAL_PACK_ID;
+      const created = createRun(packId, action.seed, state.profile);
       return created.ok
         ? { ...state, run: created.state, levelUp: null, notice: null }
         : applyResult(state, created);
     }
     case 'abandon-run': {
-      if (!state.run) return state;
-      const abandoned = { ...state.run, status: 'lost' as const };
-      return { ...state, run: null, profile: finishRunProfile(state.profile, abandoned) };
+      if (!state.run || FINAL.has(state.run.status)) return state;
+      // A run abandonada vira uma run encerrada: o resultado aparece na tela final e sobrevive ao reload.
+      const abandoned: RunState = {
+        ...state.run,
+        status: 'lost',
+        endReason: 'abandoned',
+        encounter: null,
+        shop: null,
+      };
+      return {
+        ...state,
+        run: abandoned,
+        levelUp: null,
+        notice: null,
+        profile: finishRunProfile(state.profile, abandoned),
+      };
     }
     case 'dismiss-run':
       return { ...state, run: null, levelUp: null };
@@ -116,7 +186,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'hint':
       return state.run ? applyResult(state, requestHint(state.run)) : state;
     case 'resolve': {
-      if (!state.run) return state;
+      if (!state.run || state.run.status !== 'challenge') return state;
       const before = levelFromXp(state.profile.xp);
       const { run, profile } = resolveEncounter(state.run, state.profile);
       const after = levelFromXp(profile.xp);
@@ -125,8 +195,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         run,
         profile,
         notice: null,
-        levelUp: after > before ? after : state.levelUp,
+        levelUp: after > before ? { from: before, to: after } : null,
       };
+    }
+    case 'forfeit': {
+      if (!state.run || state.run.status !== 'challenge') return state;
+      const { run, profile } = forfeitEncounter(state.run, state.profile);
+      return { ...state, run, profile, notice: null, levelUp: null };
     }
     case 'claim':
       return state.run ? applyResult(state, claimReward(state.run, action.cardId)) : state;
@@ -142,6 +217,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return state.run ? applyResult(state, buyLife(state.run)) : state;
     case 'leave-shop':
       return state.run ? applyResult(state, leaveShop(state.run)) : state;
+    case 'tutorial':
+      return state; // tratado em gameReducer
     case 'clear-notice':
       return { ...state, notice: null };
     case 'reset':

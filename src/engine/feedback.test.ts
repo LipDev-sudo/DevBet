@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { BOSS_CHALLENGE, getChallenge } from '@/content/challenges';
 import { createNodeExecutor } from '@/runner/node-executor';
-import { buildFeedback } from './feedback';
+import { buildFeedback, UNAVAILABLE_BUILTINS } from './feedback';
 
 const executor = createNodeExecutor();
 afterAll(() => executor.dispose?.());
@@ -70,5 +70,38 @@ describe('feedback educativo', () => {
     expect(zero.title).toMatch(/Divisão por zero/);
     const index = await feedbackFor('def calcular_total(a, b, c):\n    return [][3]');
     expect(index.title).toMatch(/Índice fora da lista/);
+  });
+
+  it('funções reais do Python que o sandbox bloqueia não viram "corrija o nome digitado"', async () => {
+    for (const name of ['open', 'getattr', 'breakpoint']) {
+      const feedback = await feedbackFor(`def calcular_total(a, b, c):\n    return ${name}`);
+      expect(feedback.title, name).toMatch(/Recurso indisponível/);
+      expect(feedback.cause, name).toContain(`\`${name}\` existe no Python`);
+      expect(feedback.cause).not.toMatch(/corrija o nome digitado/);
+    }
+    // Um nome que realmente não existe continua sendo erro de digitação.
+    const typo = await feedbackFor('def calcular_total(a, b, c):\n    return qtd');
+    expect(typo.title).toMatch(/Nome não definido/);
+  });
+
+  it('a lista de recursos indisponíveis bate com o sandbox: nenhum deles está de fato disponível', async () => {
+    const probes = [...UNAVAILABLE_BUILTINS]
+      .map(
+        (name) =>
+          `    try:\n        ${name}\n        livres.append('${name}')\n    except NameError:\n        pass`,
+      )
+      .join('\n');
+    const report = await executor.run({
+      code: `def calcular_total(a, b, c):\n    livres = []\n${probes}\n    return livres`,
+      tests: [{ name: 't', expr: 'calcular_total(1, 2, 3)', expected: [] }],
+      timeoutMs: 5000,
+    });
+    expect(report.tests[0]?.passed, JSON.stringify(report.tests[0])).toBe(true);
+  });
+
+  it('o erro de import bloqueado não termina com ponto duplicado', async () => {
+    const feedback = await feedbackFor('import os\ndef calcular_total(a, b, c):\n    return 1');
+    expect(feedback.title).toBe('Módulo indisponível');
+    expect(feedback.cause).not.toContain('..');
   });
 });

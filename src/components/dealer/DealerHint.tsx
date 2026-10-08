@@ -15,7 +15,7 @@ export function DealerHint({
   onOpenExplanation: () => void;
 }) {
   const steps = challenge.boss ? [1, 2, 3, 5] : [1, 2, 3, 4, 5];
-  const shown = ([1, 2, 3, 4] as const).filter((n) => n <= level && !(challenge.boss && n === 4));
+  const shown = ([1, 2, 3, 4] as const).filter((n) => n <= level && challenge.ladder[FIELD[n]]);
   if (shown.length === 0 && level < 5) return null;
 
   return (
@@ -34,7 +34,7 @@ export function DealerHint({
       </div>
       <ol className="mt-3 space-y-3" aria-label="Conversa de dicas">
         {shown.map((n) => {
-          const text = challenge.ladder[FIELD[n]];
+          const text = challenge.ladder[FIELD[n]] ?? '';
           return (
             <li key={n} className="animate-rise space-y-1.5">
               <p className="text-right text-[0.7rem] text-ivory-dim">Você pediu ajuda</p>

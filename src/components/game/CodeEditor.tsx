@@ -1,6 +1,7 @@
 'use client';
 
 import Editor, { loader, type BeforeMount, type OnMount } from '@monaco-editor/react';
+import type { editor as MonacoEditor } from 'monaco-editor';
 import { useEffect, useRef, useState } from 'react';
 import { RUN_LIMITS } from '@/runner/types';
 
@@ -42,8 +43,11 @@ const defineTheme: BeforeMount = (monaco) => {
 };
 
 export interface CodeEditorProps {
+  /** Texto atual. O Monaco só o recebe na abertura e quando `resetKey` muda: digitar nunca é sobrescrito. */
   value: string;
   onChange: (value: string) => void;
+  /** Mude este número para o editor substituir o texto por `value` (ex.: "Usar no editor"). */
+  resetKey?: number;
   /** Atalho Ctrl/Cmd + Enter. */
   onRun?: () => void;
   readOnly?: boolean;
@@ -53,15 +57,31 @@ export interface CodeEditorProps {
 export function CodeEditor({
   value,
   onChange,
+  resetKey = 0,
   onRun,
   readOnly = false,
   label = 'Editor de código',
 }: CodeEditorProps) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'fallback'>('loading');
   const runRef = useRef(onRun);
+  const valueRef = useRef(value);
+  const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+  const [initialValue] = useState(value);
   useEffect(() => {
     runRef.current = onRun;
+    valueRef.current = value;
   });
+
+  // O editor é a fonte da verdade enquanto o jogador digita. Se o pai devolvesse `value` a cada tecla,
+  // um eco atrasado apagaria o que foi digitado depois (perda de caracteres em aparelhos lentos).
+  // Só uma troca explícita (`resetKey`) substitui o texto.
+  const appliedReset = useRef(resetKey);
+  useEffect(() => {
+    if (appliedReset.current === resetKey) return;
+    appliedReset.current = resetKey;
+    const editor = editorRef.current;
+    if (editor && editor.getValue() !== valueRef.current) editor.setValue(valueRef.current);
+  }, [resetKey]);
 
   useEffect(() => {
     if (status !== 'loading') return;
@@ -73,6 +93,7 @@ export function CodeEditor({
   }, [status]);
 
   const handleMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
     setStatus('ready');
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runRef.current?.());
   };
@@ -98,7 +119,7 @@ export function CodeEditor({
       <Editor
         height="100%"
         defaultLanguage="python"
-        value={value}
+        defaultValue={initialValue}
         theme={THEME}
         beforeMount={defineTheme}
         onMount={handleMount}

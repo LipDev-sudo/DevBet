@@ -1,4 +1,5 @@
 import type { ExecutionReport } from '@/runner/types';
+import { topLevelError } from './feedback';
 import type { DealerTone } from '@/content/tables';
 import type { Challenge } from './challenge';
 import type { EncounterOutcome } from './run';
@@ -12,6 +13,7 @@ export type DealerKind =
   | 'success'
   | 'efficient'
   | 'syntax'
+  | 'runtime'
   | 'logic'
   | 'partial'
   | 'timeout'
@@ -61,14 +63,6 @@ export function reactToRun(input: {
       text: hasHidden ? 'Boa mão. Falta enfrentar os testes ocultos.' : 'Boa mão.',
     };
   }
-  if (failures >= 3 && failures % 3 === 0) {
-    return {
-      mood: 'serious',
-      kind: 'retry',
-      text: 'Vamos voltar um passo. Qual é exatamente o problema que precisamos resolver?',
-      nudge,
-    };
-  }
   switch (report.status) {
     case 'syntax-error':
       return {
@@ -81,7 +75,7 @@ export function reactToRun(input: {
       return {
         mood: 'serious',
         kind: 'timeout',
-        text: 'Seu código não terminou. Algo ali nunca para.',
+        text: 'Seu código não terminou a tempo. Procure um loop que nunca acaba ou um trabalho grande demais.',
         nudge,
       };
     case 'rejected':
@@ -93,6 +87,34 @@ export function reactToRun(input: {
         nudge,
       };
     default: {
+      const firstFailure = report.tests.find((t) => !t.passed && !t.skipped);
+      const loadError = topLevelError(report);
+      if (loadError?.startsWith('ImportError')) {
+        return {
+          mood: 'error',
+          kind: 'runtime',
+          text: 'Esse módulo não está liberado nos desafios. Use só o que o enunciado pede.',
+          nudge,
+        };
+      }
+      if (loadError || firstFailure?.error) {
+        return {
+          mood: 'error',
+          kind: 'runtime',
+          text: loadError
+            ? 'O Python parou seu código antes de os testes rodarem. Leia o nome e a linha do erro.'
+            : 'O Python levantou um erro ao rodar seu código. Leia o nome e a linha do erro: eles apontam onde olhar.',
+          nudge,
+        };
+      }
+      if (failures >= 3 && failures % 3 === 0) {
+        return {
+          mood: 'serious',
+          kind: 'retry',
+          text: 'Vamos voltar um passo. Qual é exatamente o problema que precisamos resolver?',
+          nudge,
+        };
+      }
       const passed = report.tests.filter((t) => t.passed).length;
       return passed > 0
         ? { mood: 'error', kind: 'partial', text: 'Está perto. Revise essa parte.', nudge }
@@ -106,17 +128,25 @@ export function reactToRun(input: {
   }
 }
 
+/** Explica o Bust pela causa real: desistência, precisão perdida ou mão que rendeu pouco. */
+function explainBust(outcome: EncounterOutcome): string {
+  if (outcome.forfeit) {
+    return 'Você desistiu do desafio. A casa cobra uma vida e a aposta fica na mesa.';
+  }
+  const result = `${outcome.score.total} de ${outcome.target} pts`;
+  if (outcome.score.precision < 1) {
+    return `Bust. O código passou, mas entregas erradas e dicas baixaram a precisão para ×${outcome.score.precision.toFixed(2)}: ${result}.`;
+  }
+  return `Bust. O código passou sem perder precisão, mas a mão rendeu só ${result}. Cartas que casam com o desafio dobram de efeito.`;
+}
+
 /** Reação ao resultado final da mesa. */
 export function reactToOutcome(challenge: Challenge, outcome: EncounterOutcome): DealerLine {
   if (outcome.bust) {
-    return {
-      mood: 'serious',
-      kind: 'bust',
-      text: 'Bust. Erros e dicas custaram pontos. Revise o que ficou fraco antes da próxima mesa.',
-    };
+    return { mood: 'serious', kind: 'bust', text: explainBust(outcome) };
   }
   if (challenge.boss) {
-    return { mood: 'success', kind: 'success', text: 'Boa mão. Você não venceu por sorte.' };
+    return { mood: 'success', kind: 'success', text: 'Boa mão. O boss caiu.' };
   }
   if (outcome.efficient) {
     return { mood: 'success', kind: 'efficient', text: 'Boa solução. E eficiente.' };

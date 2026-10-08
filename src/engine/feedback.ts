@@ -12,6 +12,43 @@ export interface Feedback {
   total: number;
 }
 
+/** Prefixo do log que o runner escreve quando o código do jogador falha ao carregar (antes dos testes). */
+export const TOP_LEVEL_ERROR_PREFIX = 'Erro ao executar o código: ';
+
+/** Erro que interrompeu o código antes de os testes rodarem (ex.: import bloqueado), se houve. */
+export function topLevelError(report: ExecutionReport): string | null {
+  const line = report.logs.find((log) => log.startsWith(TOP_LEVEL_ERROR_PREFIX));
+  return line ? line.slice(TOP_LEVEL_ERROR_PREFIX.length) : null;
+}
+
+/** Funções do Python que existem de verdade, mas que o sandbox não oferece (ver o harness em runner.worker.js). */
+export const UNAVAILABLE_BUILTINS = new Set([
+  'open',
+  'eval',
+  'exec',
+  'compile',
+  'globals',
+  'locals',
+  'vars',
+  'dir',
+  'getattr',
+  'setattr',
+  'delattr',
+  'hasattr',
+  'id',
+  'hash',
+  'bytes',
+  'bytearray',
+  'memoryview',
+  'complex',
+  'breakpoint',
+  'exit',
+  'quit',
+  'help',
+  'ascii',
+  'issubclass',
+]);
+
 const TYPE_LABEL: Record<string, string> = {
   number: 'número',
   string: 'texto (str)',
@@ -61,6 +98,13 @@ function explainTest(challenge: Challenge, test: TestResult): { title: string; c
   if (error) {
     const where = atLine(error.line);
     if (error.name === 'NameError') {
+      const missing = /name '([A-Za-z_][A-Za-z0-9_]*)' is not defined/.exec(error.message)?.[1];
+      if (missing && UNAVAILABLE_BUILTINS.has(missing)) {
+        return {
+          title: `Recurso indisponível${where}`,
+          cause: `\`${missing}\` existe no Python, mas não está liberado nos desafios: aqui o código só chama as funções pedidas, sem acesso a arquivos, execução dinâmica, introspecção nem pausas. Resolva sem ele.`,
+        };
+      }
       if (error.message.includes(challenge.functionName)) {
         return {
           title: 'Função não encontrada',
@@ -163,6 +207,16 @@ export function buildFeedback(
       const firstFailure = report.tests.find((t) => !t.passed && !t.skipped);
       if (!firstFailure) {
         return { ...base, title: 'Algo não passou', cause: 'Confira novamente os testes.' };
+      }
+      const loadError = topLevelError(report);
+      if (loadError && firstFailure.error?.name === 'NameError') {
+        return {
+          ...base,
+          title: loadError.startsWith('ImportError')
+            ? 'Módulo indisponível'
+            : 'O código falhou ao carregar',
+          cause: `${loadError.replace(/\.+$/, '')}. Por isso \`${challenge.functionName}\` nunca chegou a ser criada.`,
+        };
       }
       return { ...base, ...explainTest(challenge, firstFailure) };
     }

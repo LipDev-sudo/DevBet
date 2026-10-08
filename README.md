@@ -13,13 +13,14 @@ As fichas são virtuais: não há dinheiro real, apostas reais nem compras dentr
 Começar run → Desafio → Escolher risco → Escrever Python → Testes → Recompensa → Nova carta → … → Boss
 ```
 
-- **Roguelike de programação.** Uma run é linear: seis mesas de aprendizado (FUNDAMENTALS, LOGIC, LOOPS, DATA, ALGORITHMS e HIGH TABLE), com lojas entre elas e um boss no final.
-- **Python de verdade.** Você escreve código no editor (Monaco) e ele roda contra testes automáticos, incluindo testes ocultos que só aparecem na entrega.
-- **Cartas são conceitos de Python:** VARIABLE, CONDITION, FOR, LIST, DICTIONARY, FUNCTION, RECURSION, entre outros. Elas nunca resolvem o código por você; só influenciam pontuação, multiplicador, risco e recompensa. A carta de um conceito que o desafio usa vale o dobro.
-- **Combos** exigem dois conceitos na mão e no desafio. Exemplo: LIST + FOR = ITERATOR; FUNCTION + RECURSION = RECURSIVE ENGINE.
-- **Risco/recompensa** com fichas fictícias: SAFE (×1.0), RISKY (×1.5) ou HIGH RISK (×2.0). Vencer multiplica as fichas ganhas; um Bust custa a aposta e uma vida.
-- **Dealer.** Mentor ocasional que explica conceitos, reage a erros e oferece dicas em cinco níveis (Pergunta → Pista → Conceito → Exemplo parcial → Explicação), sempre a pedido do jogador.
-- **Progressão.** XP e níveis desbloqueiam novas cartas. Perfil e run em andamento são salvos no `localStorage` do navegador.
+- **Roguelike de programação.** Uma run é linear: seis mesas de aprendizado (FUNDAMENTALS, LOGIC, LOOPS, DATA, ALGORITHMS e HIGH TABLE), com lojas entre elas e um boss no final. As mesas têm identidade visual própria; o cenário não dá bônus.
+- **Python de verdade.** Você escreve código no editor (Monaco). **Executar** testa à vontade (só os testes visíveis, sem custo de pontos, até 60 vezes por desafio). **Entregar** roda também os testes ocultos: uma entrega errada custa 8% de precisão e entregar nunca é bloqueado. **Desistir** é sempre possível e conta como Bust.
+- **Cartas são conceitos de Python:** VARIABLE, CONDITION, FOR, LIST, DICTIONARY, FUNCTION, RECURSION, entre outros. Elas nunca resolvem o código por você: cada carta soma fichas e multiplicador, e o efeito dobra quando o desafio usa o conceito dela. Você começa com 7 cartas e recebe uma mão de 5; **Trocar mão** sorteia outra mão (uma vez por mesa).
+- **Combos de conceitos** exigem as duas cartas na mão e que o desafio use os dois conceitos. Exemplo: LIST + FOR = ITERATOR; FUNCTION + RECURSION = RECURSIVE ENGINE. A **sequência** de vitórias seguidas é outro bônus, separado.
+- **Risco/recompensa** com fichas fictícias: SAFE (×1.0), RISKY (×1.5, aposta 10) ou HIGH RISK (×2.0, aposta 25). O risco não muda a meta nem a chance de Bust: muda quanto você ganha e quanto pode perder. Vencer devolve a aposta e paga a recompensa multiplicada; um Bust custa a aposta e uma vida. Sem vidas, a run termina.
+- **Dealer.** Mentor ocasional que explica conceitos, reage ao tipo real do erro e oferece dicas em cinco níveis (Pergunta → Pista → Conceito → Exemplo parcial → Explicação), sempre a pedido do jogador. O custo de cada dica aparece antes de pedir.
+- **Primeira run guiada.** A primeira run de cada jogador é uma Tutorial Run: o Dealer ensina, passo a passo, o que já existe no jogo (cartas, combo de conceitos, Executar × Entregar, risco, Bust e vidas, dicas, loja e boss). Cada passo só avança com a ação real; as regras são as de sempre. Terminar a run (vencendo, perdendo ou abandonando) encerra o tutorial para sempre.
+- **Progressão.** XP e nível só desbloqueiam cartas nas lojas e recompensas. Perfil e run em andamento são salvos no `localStorage` do navegador, inclusive o resultado da última run até você começar outra. **Abandonar run** está disponível em qualquer etapa.
 
 ## Desenvolvimento
 
@@ -66,6 +67,26 @@ O código do jogador nunca roda no servidor nem na thread principal. O Python ex
 - timeout de 1,5 s com encerramento forçado do worker, limite de 4000 caracteres, 60 execuções por desafio e cooldown entre execuções.
 
 Limitações: o navegador não permite limitar a memória de um worker, e a restrição de builtins é defesa em profundidade, não uma fronteira de segurança isolada. Antes de recursos como ranking ou contas, valide pontuações com um executor remoto implementando a interface `CodeExecutor` (`src/runner/types.ts`).
+
+### Testes de navegador (e2e)
+
+Os scripts em `e2e/` dirigem o jogo real no Chromium via `playwright-core` (devDependency; nada global, sem `NODE_PATH`). Requisitos: Node >= 22.18 (lê as soluções de referência direto de `src/content/challenges.ts`) e um Chromium.
+
+```bash
+npm run build && npx next start -p 3100 &           # servidor de produção local
+npx playwright-core install chromium                # ou: export PLAYWRIGHT_CHROMIUM_PATH=/caminho/do/chromium
+npm run e2e:tutorial            # Tutorial Run completa, desktop 1280x900
+npm run e2e:tutorial:mobile     # idem, 390x844
+npm run e2e:edge                # loja, seguro, última vida, reload   (mobile: npm run e2e:edge -- mobile)
+npm run e2e:integrity -- 4      # executar/entregar, reload, abandono (argumentos: <cpu 1|4|8> [mobile])
+npm run e2e:tabs                # duas abas / run encerrada
+npm run e2e:sandbox             # recursos bloqueados, mensagens de erro, código > 4000 caracteres
+npm run e2e:keyboard            # fluxo completo só por teclado (foco, modais, risco, loja)
+npm run e2e:persist -- 120      # reload <ms> após cada ação; hidratação sem escrita
+npm run e2e:screens             # screenshots desktop/mobile + checagem de overflow e alvos de toque
+```
+
+Variáveis: `DEVBET_URL` (padrão `http://localhost:3100`), `PLAYWRIGHT_CHROMIUM_PATH`, `E2E_OUT` (screenshots; padrão `e2e/.out`, ignorado pelo git). Cada script termina com `ERRORS []`; os que fazem asserções (`integrity`, `sandbox`, `keyboard`, `persist`) terminam com `RESULT: ALL PASS`.
 
 ### Variáveis de ambiente
 

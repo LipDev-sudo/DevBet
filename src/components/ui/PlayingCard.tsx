@@ -1,5 +1,5 @@
-import { cardChips, cardMult, getCard, RARITY_LABEL } from '@/engine/cards';
-import { CATEGORY_LABEL, TOPIC_LABEL, type CardId, type CategoryId } from '@/engine/types';
+import { cardEffect, getCard, RARITY_LABEL } from '@/engine/cards';
+import { CATEGORY_LABEL, type CardId, type CategoryId } from '@/engine/types';
 
 export type CardSize = 'xs' | 'sm' | 'md' | 'lg';
 
@@ -47,7 +47,7 @@ export interface PlayingCardProps {
   upgrade?: number;
   size?: CardSize;
   selected?: boolean;
-  /** Destaca a carta como sinérgica com o tema atual. */
+  /** O desafio atual usa o conceito desta carta: o efeito mostrado já é o dobrado. */
   boosted?: boolean;
   faceDown?: boolean;
   dealDelayMs?: number;
@@ -74,7 +74,7 @@ export function PlayingCard({
   }
 
   const card = getCard(cardId);
-  const mult = Math.round(cardMult(card, upgrade) * 100);
+  const effect = cardEffect(card, upgrade, boosted);
   const interactive = Boolean(onClick);
   const Tag = interactive ? 'button' : 'div';
 
@@ -82,12 +82,13 @@ export function PlayingCard({
     <Tag
       type={interactive ? 'button' : undefined}
       onClick={onClick}
+      data-card-id={cardId}
       data-rarity={card.rarity}
       data-selected={selected}
       data-interactive={interactive}
       data-boosted={boosted}
       aria-pressed={interactive ? selected : undefined}
-      aria-label={`${card.name}, ${CATEGORY_LABEL[card.category]}, carta ${RARITY_LABEL[card.rarity].toLowerCase()}. +${cardChips(card, upgrade)} fichas, +${mult}% ${TOPIC_LABEL[card.topics[0] ?? 'basics']}`}
+      aria-label={`${card.name}, ${CATEGORY_LABEL[card.category]}, carta ${RARITY_LABEL[card.rarity].toLowerCase()}. +${effect.chips} fichas e +${effect.mult.toFixed(2)} de multiplicador${boosted ? ', dobrado porque o desafio usa este conceito' : '; dobra se o desafio usar este conceito'}`}
       className={`playing-card text-left ${base}`}
       style={style}
     >
@@ -114,9 +115,11 @@ export function PlayingCard({
 
         <div className="pc-effect">
           <div className={boosted ? 'text-gold-light' : 'text-ivory'}>
-            +{mult}% {TOPIC_LABEL[card.topics[0] ?? 'basics']}
+            +{effect.mult.toFixed(2)} MULT{boosted ? ' ×2' : ''}
           </div>
-          <div className="text-ivory-dim">+{cardChips(card, upgrade)} FICHAS</div>
+          <div className={boosted ? 'text-gold-light' : 'text-ivory-dim'}>
+            +{effect.chips} FICHAS
+          </div>
         </div>
       </div>
     </Tag>

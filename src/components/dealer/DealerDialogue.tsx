@@ -4,6 +4,7 @@ import { Dealer } from './Dealer';
 
 const KIND_META: Partial<Record<DealerKind, { label: string; className: string }>> = {
   syntax: { label: 'Sintaxe', className: 'text-crimson-hot ring-crimson-hot/50' },
+  runtime: { label: 'Erro de execução', className: 'text-crimson-hot ring-crimson-hot/50' },
   logic: { label: 'Lógica', className: 'text-ivory ring-white/30' },
   partial: { label: 'Quase', className: 'text-ivory ring-white/30' },
   timeout: { label: 'Travou', className: 'text-crimson-hot ring-crimson-hot/50' },

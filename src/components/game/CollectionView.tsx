@@ -27,7 +27,8 @@ export function CollectionView() {
           O <span className="gold-text">livro da casa</span>
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-ivory-dim">
-          Cartas, combos e combinações. Suba de nível para destravar conceitos mais avançados.
+          Cartas, combos de conceitos e combinações de mão. Seu nível só desbloqueia cartas: suba de
+          nível com XP para que conceitos mais avançados apareçam nas lojas e recompensas.
         </p>
       </header>
 
@@ -49,7 +50,8 @@ export function CollectionView() {
 
       <section aria-labelledby="cartas-titulo">
         <h2 id="cartas-titulo" className="table-label mb-5">
-          Cartas ({CARDS.filter((c) => isUnlocked(c, xp.level)).length}/{CARDS.length})
+          Cartas desbloqueadas ({CARDS.filter((c) => isUnlocked(c, xp.level)).length}/{CARDS.length}
+          )
         </h2>
         <ul className="grid grid-cols-2 justify-items-center gap-5 sm:grid-cols-3 lg:grid-cols-6">
           {CARDS.map((card) => {
@@ -74,14 +76,21 @@ export function CollectionView() {
 
       <section aria-labelledby="combos-titulo">
         <h2 id="combos-titulo" className="table-label mb-5">
-          Combos
+          Combos de conceitos
         </h2>
+        <p className="-mt-3 mb-5 text-xs text-ivory-dim">
+          Ativam quando você tem as duas cartas na mão e o desafio usa os dois conceitos. Cada combo
+          soma ao multiplicador.
+        </p>
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {COMBOS.map((combo) => (
             <li key={combo.id} className="panel rounded-lg p-4">
               <p className="font-display text-lg font-bold text-ivory">{combo.name}</p>
               <p className="mt-0.5 font-mono text-xs text-ivory-dim">{comboLabel(combo)}</p>
               <p className="mt-2 text-sm text-ivory/90">{combo.description}</p>
+              <p className="mt-1 font-mono text-xs text-gold-light">
+                +{combo.bonus.toFixed(2)} MULT
+              </p>
             </li>
           ))}
         </ul>
@@ -161,6 +170,14 @@ export function CollectionView() {
               <pre className="mt-4 overflow-x-auto rounded-lg bg-black/60 p-3 font-mono text-xs text-ivory ring-1 ring-white/25">
                 {selectedCard.snippet}
               </pre>
+              <p className="mt-4 text-xs leading-relaxed text-ivory-dim">
+                Efeito: +{selectedCard.chips} fichas e +{selectedCard.mult.toFixed(2)} de
+                multiplicador em qualquer mesa; o dobro quando o desafio usa este conceito (
+                {ALL_CHALLENGES.filter((c) => c.concepts.includes(selectedCard.id))
+                  .map((c) => c.title)
+                  .join(', ')}
+                ).
+              </p>
             </div>
           </div>
         )}

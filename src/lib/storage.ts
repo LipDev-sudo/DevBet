@@ -2,6 +2,7 @@ import { ALL_CHALLENGES } from '@/content/challenges';
 import { CARDS, LEGACY_CARD_IDS } from '@/engine/cards';
 import { createProfile, type Profile } from '@/engine/progression';
 import type { RunState, RunStatus } from '@/engine/run';
+import { parseTutorial } from '@/engine/tutorial-state';
 
 /**
  * Persistência atrás de uma interface: hoje LocalStorage, amanhã uma API com PostgreSQL / cloud save.
@@ -49,14 +50,19 @@ export function parseProfile(raw: unknown): Profile {
       }
     }
   }
+  const runsPlayed = num(raw.runsPlayed, 0);
+  const xp = num(raw.xp, base.xp);
   return {
     version: 1,
-    xp: num(raw.xp, base.xp),
-    runsPlayed: num(raw.runsPlayed, 0),
+    xp,
+    runsPlayed,
     runsWon: num(raw.runsWon, 0),
     bestRunScore: num(raw.bestRunScore, 0),
     solved,
     seenCards: [...new Set(mapCardIds(raw.seenCards))],
+    // Perfis anteriores ao tutorial não tinham o campo: quem já jogou não precisa de tutorial.
+    tutorialCompleted:
+      typeof raw.tutorialCompleted === 'boolean' ? raw.tutorialCompleted : runsPlayed > 0 || xp > 0,
   };
 }
 
@@ -105,7 +111,7 @@ function migrateV1(raw: Record<string, unknown>): Record<string, unknown> | null
   return next;
 }
 
-/** Aceita apenas runs que o motor atual consegue retomar com segurança. */
+/** Aceita runs que o motor atual consegue retomar com segurança, inclusive as já encerradas (tela final). */
 export function parseRun(input: unknown): RunState | null {
   let raw = input;
   if (isRecord(raw) && raw.version === 1) raw = migrateV1(raw);
@@ -118,8 +124,19 @@ export function parseRun(input: unknown): RunState | null {
   const knownChallenges = new Set(ALL_CHALLENGES.map((c) => c.id));
   const encounter = raw.encounter;
   if (isRecord(encounter) && !knownChallenges.has(String(encounter.challengeId))) return null;
-  if (raw.status === 'won' || raw.status === 'lost') return null; // runs encerradas não são retomadas
-  const run = raw as unknown as RunState;
+  const parsed = raw as unknown as RunState;
+  // O histórico alimenta a tela final: entradas de desafios que não existem mais seriam um erro de tela.
+  const history = Array.isArray(raw.history)
+    ? raw.history.filter(
+        (entry) => isRecord(entry) && knownChallenges.has(String(entry.challengeId)),
+      )
+    : [];
+  const run: RunState = {
+    ...parsed,
+    history: history as RunState['history'],
+    tutorial: parseTutorial(raw.tutorial),
+    endReason: raw.endReason === 'abandoned' ? 'abandoned' : undefined,
+  };
   // Saves anteriores à escada de dicas não têm hintLevel.
   if (run.encounter && typeof run.encounter.hintLevel !== 'number') {
     return { ...run, encounter: { ...run.encounter, hintLevel: 0 } };

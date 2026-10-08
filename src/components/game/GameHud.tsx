@@ -6,15 +6,23 @@ import { ChipCount } from '@/components/ui/Chip';
 import { Brand } from '@/components/ui/Brand';
 import { Modal } from '@/components/ui/Modal';
 import { tableForLayer, tableLabel } from '@/content/tables';
+import { CARDS } from '@/engine/cards';
 import { xpProgress } from '@/engine/progression';
-import { MAX_LIVES } from '@/engine/run';
-import { streakMultiplier } from '@/engine/scoring';
+import { START_LIVES } from '@/engine/run';
+import { STREAK_CAP, STREAK_STEP, streakMultiplier } from '@/engine/scoring';
 import { useGame } from './GameProvider';
 
+/** Um coração por vida real. Vazios só aparecem para as vidas perdidas do começo da run (até START_LIVES). */
 function Lives({ lives }: { lives: number }) {
+  const slots = Math.max(START_LIVES, lives);
   return (
-    <span className="inline-flex items-center gap-0.5" role="img" aria-label={`${lives} vidas`}>
-      {Array.from({ length: MAX_LIVES }, (_, i) => (
+    <span
+      key={lives}
+      className="bump inline-flex items-center gap-0.5"
+      role="img"
+      aria-label={`${lives} ${lives === 1 ? 'vida' : 'vidas'}`}
+    >
+      {Array.from({ length: slots }, (_, i) => (
         <span
           key={i}
           aria-hidden="true"
@@ -33,6 +41,7 @@ export function GameHud() {
   const run = state.run;
   if (!run) return null;
   const xp = xpProgress(state.profile.xp);
+  const nextUnlocks = CARDS.filter((card) => card.unlockLevel === xp.level + 1).map((c) => c.name);
 
   return (
     <header className="wood relative z-20 border-x-0 border-t-0">
@@ -46,26 +55,33 @@ export function GameHud() {
         <dl className="flex flex-1 flex-wrap items-center justify-end gap-x-5 gap-y-1.5 sm:flex-none">
           <div className="flex items-center gap-2">
             <dt className="sr-only">Fichas</dt>
-            <dd>
+            <dd key={run.chips} className="bump">
               <ChipCount amount={run.chips} />
             </dd>
           </div>
           <div className="flex items-center gap-2">
             <dt className="sr-only">Vidas</dt>
-            <dd>
+            <dd data-tutorial="lives">
               <Lives lives={run.lives} />
             </dd>
           </div>
           <div
             className="flex items-center gap-2"
-            title="Vitórias seguidas multiplicam a pontuação"
+            title={`Sequência: cada vitória seguida soma ${STREAK_STEP.toFixed(2)} ao multiplicador da pontuação (até ×${streakMultiplier(STREAK_CAP).toFixed(2)}). Um Bust zera.`}
           >
-            <dt className="table-label !tracking-[0.2em]">Combo</dt>
+            <dt className="table-label !tracking-[0.2em]">Sequência</dt>
             <dd key={run.streak} className="bump font-display font-bold text-win tabular-nums">
               ×{streakMultiplier(run.streak).toFixed(2)}
             </dd>
           </div>
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2"
+            title={
+              nextUnlocks.length > 0
+                ? `Nível ${xp.level}. XP só desbloqueia cartas: no nível ${xp.level + 1} entram ${nextUnlocks.join(', ')} nas lojas e recompensas.`
+                : `Nível ${xp.level}. XP só desbloqueia cartas, e você já liberou todas.`
+            }
+          >
             <dt className="table-label !tracking-[0.2em]">Nv {xp.level}</dt>
             <dd className="w-20">
               <div
@@ -86,7 +102,7 @@ export function GameHud() {
           <button
             type="button"
             onClick={() => setDeckOpen(true)}
-            className="table-label rounded-lg px-2 py-1.5 ring-1 ring-white/25 hover:bg-white/8"
+            className="table-label min-h-10 rounded-lg px-3 py-2 ring-1 ring-white/25 hover:bg-white/8"
           >
             Baralho ({run.deck.length})
           </button>

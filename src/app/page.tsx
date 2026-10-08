@@ -10,8 +10,11 @@ import { Wordmark } from '@/components/ui/Wordmark';
 const PILLARS = [
   { name: 'Cards', text: 'Conceitos de Python viram cartas: CONDITION, FOR, LIST, RECURSION.' },
   { name: 'Code', text: 'Cada mesa é um desafio. Você escreve Python e os testes decidem.' },
-  { name: 'Combos', text: 'Cartas certas juntas multiplicam a pontuação: LIST + FOR = ITERATOR.' },
-  { name: 'Rewards', text: 'Fichas e XP compram cartas, melhorias e novas áreas.' },
+  { name: 'Combos', text: 'Cartas certas juntas somam ao multiplicador: LIST + FOR = ITERATOR.' },
+  {
+    name: 'Rewards',
+    text: 'Fichas compram cartas e melhorias na loja; o XP desbloqueia novas cartas.',
+  },
 ];
 
 export default function Home() {

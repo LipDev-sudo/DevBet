@@ -16,3 +16,6 @@ next-env.d.ts
 
 # Gerado pelo `next dev` quando detecta um agente de código; não faz parte do projeto
 AGENTS.md
+
+# Saídas (screenshots) dos scripts de e2e
+/e2e/.out

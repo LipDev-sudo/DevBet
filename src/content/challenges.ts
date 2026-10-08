@@ -535,7 +535,6 @@ export const BOSS_CHALLENGE: Challenge = {
     clue: 'Olhe a condição do `while` e o que acontece com `i` dentro do bloco. Depois, o limite: o zero deveria entrar?',
     concept:
       'Loop infinito: a variável de controle nunca é atualizada. Off-by-one: `>=` onde deveria ser `>`.',
-    example: 'while i > 0:\n    resultado.append(i)\n    # falta uma linha aqui',
   },
   solution: {
     code: 'def contagem_regressiva(n):\n    resultado = []\n    i = n\n    while i > 0:\n        resultado.append(i)\n        i -= 1\n    return resultado',

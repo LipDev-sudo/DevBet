@@ -3,7 +3,9 @@
 import { Wordmark } from '@/components/ui/Wordmark';
 import { GameHud } from './GameHud';
 import { useGame } from './GameProvider';
+import { AbandonRun } from './AbandonRun';
 import { Notice } from './Notice';
+import { TutorialCoach } from './TutorialCoach';
 import { ChallengeScreen } from './screens/ChallengeScreen';
 import { EndScreen } from './screens/EndScreen';
 import { Lobby } from '../world/Lobby';
@@ -57,8 +59,10 @@ export function PlayShell() {
     <div className="flex min-h-screen flex-col">
       <GameHud />
       <main id="conteudo" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
+        <TutorialCoach />
         {/* `key` reinicia a animação de entrada a cada mudança de etapa. */}
         <div key={`${run?.status ?? 'start'}-${run?.layerIndex ?? 0}`}>{screen}</div>
+        <AbandonRun />
       </main>
       <Notice />
     </div>

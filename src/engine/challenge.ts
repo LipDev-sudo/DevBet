@@ -17,8 +17,8 @@ export interface HintLadder {
   clue: string;
   /** Nível 3 — o conceito que ajuda. */
   concept: string;
-  /** Nível 4 — exemplo parcial de código. */
-  example: string;
+  /** Nível 4 — exemplo parcial de código. Os bosses não têm: a escada deles pula do 3 para a explicação. */
+  example?: string;
 }
 
 export interface Challenge {

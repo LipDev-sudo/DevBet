@@ -24,14 +24,5 @@ describe('cenas das mesas', () => {
         table.id,
       ).toBe(true);
     }
-    const planned = TABLES.flatMap((t) => t.planned);
-    expect(planned).toEqual(
-      expect.arrayContaining([
-        'match (Python 3.10+)',
-        'busca binária',
-        'ordenação',
-        'complexidade',
-      ]),
-    );
   });
 });

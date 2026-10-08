@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef } from 'react';
 
-/** Diálogo acessível baseado em <dialog>: foco preso, Esc fecha, clique no fundo fecha. */
+/** Diálogo acessível baseado em <dialog>: foco preso, Esc fecha, clique no fundo fecha. Foco inicial: `[data-autofocus]` ou o 1º controle. */
 export function Modal({
   open,
   onClose,
@@ -22,7 +22,11 @@ export function Modal({
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      // Confirmações destrutivas marcam a opção segura com data-autofocus: o foco inicial cai nela.
+      dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    }
     if (!open && dialog.open) dialog.close();
   }, [open]);
 

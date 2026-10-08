@@ -19,6 +19,6 @@ describe('sfx', () => {
     setSfxHandler(() => {
       throw new Error('sem áudio');
     });
-    expect(() => playSfx('victory')).not.toThrow();
+    expect(() => playSfx('boss')).not.toThrow();
   });
 });

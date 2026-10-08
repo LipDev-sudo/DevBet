@@ -10,7 +10,8 @@ import { PlayingCard } from '@/components/ui/PlayingCard';
 import { getChallenge } from '@/content/challenges';
 import { tableForLayer } from '@/content/tables';
 import { reactToOutcome } from '@/engine/dealer';
-import { getCard, RARITY_LABEL } from '@/engine/cards';
+import { cardsUnlockedBetween } from '@/engine/progression';
+import { CARDS, getCard, RARITY_LABEL } from '@/engine/cards';
 import { RISK_LEVELS, SKIP_REWARD_CHIPS } from '@/engine/run';
 import { useGame } from '../GameProvider';
 
@@ -66,6 +67,7 @@ export function ResultScreen() {
   const table = tableForLayer(run.layerIndex);
   const reaction = reactToOutcome(challenge, outcome);
   const isBossRetry = bust && challenge.boss && run.lives > 0;
+  const allUnlocked = CARDS.every((card) => card.unlockLevel <= run.unlockLevel);
 
   return (
     <div className="screen-enter mx-auto max-w-4xl">
@@ -92,9 +94,10 @@ export function ResultScreen() {
                 {bust ? 'BUST' : 'MÃO VENCEDORA'}
               </h1>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {outcome.jackpot && <Badge tone="gold">Jackpot · acerto de primeira</Badge>}
+                {outcome.jackpot && <Badge tone="gold">Jackpot · entrega de primeira</Badge>}
                 {outcome.highRoll && <Badge tone="gold">High Roll · 2× a meta</Badge>}
                 {score.rank.id === 'royal-flush' && <Badge tone="gold">Royal Hand</Badge>}
+                {outcome.forfeit && <Badge tone="red">Desistência</Badge>}
                 {bust && <Badge tone="red">−1 vida</Badge>}
               </div>
             </div>
@@ -108,35 +111,78 @@ export function ResultScreen() {
               avatar={false}
             />
 
-            <ul className="mx-auto mt-6 max-w-sm space-y-1.5 text-sm" aria-label="Testes aprovados">
-              {challenge.tests.map((test, index) => (
-                <li key={test.name} className="flex items-center gap-2 text-ivory/90">
-                  <span aria-hidden="true" className="font-bold text-win">
-                    ✓
-                  </span>
-                  {test.hidden
-                    ? `Teste oculto ${index + 1 - challenge.tests.filter((t) => !t.hidden).length}`
-                    : test.name}
-                </li>
-              ))}
-            </ul>
+            {!outcome.forfeit && (
+              <ul
+                className="mx-auto mt-6 max-w-sm space-y-1.5 text-sm"
+                aria-label="Testes aprovados"
+              >
+                {challenge.tests.map((test, index) => (
+                  <li key={test.name} className="flex items-center gap-2 text-ivory/90">
+                    <span aria-hidden="true" className="font-bold text-win">
+                      ✓
+                    </span>
+                    {test.hidden
+                      ? `Teste oculto ${index + 1 - challenge.tests.filter((t) => !t.hidden).length}`
+                      : test.name}
+                  </li>
+                ))}
+              </ul>
+            )}
 
-            {score.combos.length > 0 && (
+            {score.combos.length > 0 && !outcome.forfeit && (
               <div className="mx-auto mt-6 max-w-md">
                 <ComboCallout combos={score.combos} />
               </div>
             )}
 
+            {run.tutorial && (
+              <ol
+                aria-label="Aposta, solução, resultado e recompensa"
+                className="mx-auto mt-7 grid max-w-md grid-cols-4 gap-2 text-center"
+              >
+                {[
+                  ['Aposta', riskDef.wager > 0 ? `${riskDef.wager} fichas` : 'nada (SAFE)'],
+                  ['Solução', outcome.forfeit ? 'desistência' : `${score.total} pts`],
+                  ['Resultado', bust ? 'Bust' : 'Vitória'],
+                  [
+                    'Recompensa',
+                    bust
+                      ? outcome.stakeDelta === 0
+                        ? '0 fichas'
+                        : `−${Math.abs(outcome.stakeDelta)} fichas`
+                      : `+${outcome.chipsGained} fichas`,
+                  ],
+                ].map(([label, value], index) => (
+                  <li key={label} className="rounded-lg bg-black/30 px-1 py-2 ring-1 ring-white/10">
+                    <span className="table-label block !text-[0.6rem]">
+                      {index > 0 && <span aria-hidden="true">→ </span>}
+                      {label}
+                    </span>
+                    <span className="mt-1 block text-xs font-bold text-ivory tabular-nums">
+                      {value}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+
             <dl className="mx-auto mt-7 max-w-md space-y-3">
               <Row
-                label="Pontuação"
-                value={`+${score.total}`}
+                label={bust ? 'Pontuação (não soma)' : 'Pontuação'}
+                value={bust ? `${score.total}` : `+${score.total}`}
                 tone={bust ? 'text-crimson-hot' : 'text-ivory'}
               />
-              <Row label="Combo" value={`×${score.streakMult.toFixed(2)}`} tone="text-win" />
+              <Row label="Sequência" value={`×${score.streakMult.toFixed(2)}`} tone="text-win" />
+              <Row label="Precisão" value={`×${score.precision.toFixed(2)}`} />
               <Row
                 label="Fichas"
-                value={bust && stakeLabel ? `${outcome.stakeDelta}` : `+${outcome.chipsGained}`}
+                value={
+                  bust
+                    ? outcome.stakeDelta === 0
+                      ? '0'
+                      : `−${Math.abs(outcome.stakeDelta)}`
+                    : `+${outcome.chipsGained}`
+                }
                 tone="text-gold-light"
               />
               <Row label="XP" value={`+${outcome.xpGained}`} />
@@ -145,6 +191,13 @@ export function ResultScreen() {
               <p className="mt-2 text-center text-xs text-ivory-dim">
                 {stakeLabel}
                 {!bust && ' · a aposta voltou'}
+              </p>
+            )}
+            {outcome.chipsBefore !== undefined && outcome.chipsAfter !== undefined && (
+              <p className="mt-1 text-center text-xs text-ivory-dim">
+                Saldo de fichas: {outcome.chipsBefore} →{' '}
+                {outcome.chipsAfter - outcome.chipsBefore >= 0 ? '+' : '−'}
+                {Math.abs(outcome.chipsAfter - outcome.chipsBefore)} → {outcome.chipsAfter}
               </p>
             )}
 
@@ -166,7 +219,7 @@ export function ResultScreen() {
             </div>
 
             <details className="mx-auto mt-6 max-w-md text-sm text-ivory-dim">
-              <summary className="cursor-pointer text-center text-xs tracking-widest uppercase hover:text-ivory">
+              <summary className="flex min-h-10 cursor-pointer items-center justify-center text-center text-xs tracking-widest uppercase hover:text-ivory">
                 Como a pontuação foi calculada
               </summary>
               <ul className="mt-3 space-y-1 font-mono text-xs">
@@ -174,16 +227,16 @@ export function ResultScreen() {
                 <li>Fichas das cartas: +{score.cardChips}</li>
                 <li>
                   Multiplicador: 1 + cartas {score.cardMult.toFixed(2)} + {score.rank.name}{' '}
-                  {score.rank.mult.toFixed(2)} + combos {score.comboMult.toFixed(2)} = ×
-                  {score.mult.toFixed(2)}
+                  {score.rank.mult.toFixed(2)} + combos de conceitos {score.comboMult.toFixed(2)} =
+                  ×{score.mult.toFixed(2)}
                 </li>
                 {score.combos.map(({ combo, bonus }) => (
                   <li key={combo.id}>
-                    Combo {combo.name}: +{bonus.toFixed(2)}
+                    Combo de conceitos {combo.name}: +{bonus.toFixed(2)}
                   </li>
                 ))}
                 <li>Sequência de vitórias: ×{score.streakMult.toFixed(2)}</li>
-                <li>Precisão (erros e dicas): ×{score.precision.toFixed(2)}</li>
+                <li>Precisão (entregas erradas e dicas): ×{score.precision.toFixed(2)}</li>
               </ul>
             </details>
 
@@ -192,8 +245,13 @@ export function ResultScreen() {
                 className="mx-auto mt-6 max-w-md rounded-lg bg-white/8 px-4 py-3 text-center text-sm text-ivory ring-1 ring-white/25"
                 role="status"
               >
-                Subiu de nível! Você é nível <strong>{state.levelUp}</strong> — novas cartas podem
-                aparecer nas lojas.
+                Subiu de nível! Você é nível <strong>{state.levelUp.to}</strong>.{' '}
+                {(() => {
+                  const unlocked = cardsUnlockedBetween(state.levelUp.from, state.levelUp.to);
+                  return unlocked.length > 0
+                    ? `Passam a aparecer nas lojas e recompensas: ${unlocked.map((c) => c.name).join(', ')}.`
+                    : 'Nenhuma carta nova neste nível.';
+                })()}
               </p>
             )}
           </section>
@@ -202,7 +260,11 @@ export function ResultScreen() {
 
       {bust ? (
         <div className="mt-8 flex flex-col items-center gap-2">
-          <Button variant="crimson" onClick={() => dispatch({ type: 'claim', cardId: null })}>
+          <Button
+            variant="crimson"
+            data-tutorial="continue"
+            onClick={() => dispatch({ type: 'claim', cardId: null })}
+          >
             {run.lives <= 0 ? 'Encerrar run' : isBossRetry ? 'Pedir revanche' : 'Continuar'}
           </Button>
           {isBossRetry && (
@@ -210,28 +272,78 @@ export function ResultScreen() {
           )}
         </div>
       ) : (
-        <section className="mt-10 text-center" aria-labelledby="recompensa-titulo">
-          <h2 id="recompensa-titulo" className="table-label">
-            Escolha uma carta de recompensa
-          </h2>
-          <ul className="mt-5 flex flex-wrap items-end justify-center gap-5">
-            {outcome.rewardOptions.map((id, index) => (
-              <li key={id} className="flex flex-col items-center gap-2">
-                <PlayingCard
-                  cardId={id}
-                  size="md"
-                  dealDelayMs={index * 120}
-                  onClick={() => dispatch({ type: 'claim', cardId: id })}
-                />
-                <span className="text-xs text-ivory-dim">{RARITY_LABEL[getCard(id).rarity]}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-6">
-            <Button variant="ghost" onClick={() => dispatch({ type: 'claim', cardId: null })}>
-              <Chip tone="gold" className="!w-6" /> Pular · +{SKIP_REWARD_CHIPS} fichas
-            </Button>
-          </div>
+        <section
+          className="mt-10 text-center"
+          aria-labelledby="recompensa-titulo"
+          data-tutorial="rewards"
+        >
+          {outcome.rewardOptions.length > 0 ? (
+            <>
+              <h2 id="recompensa-titulo" className="table-label">
+                Escolha uma carta de recompensa
+              </h2>
+              <ul className="mt-5 flex flex-wrap items-end justify-center gap-5">
+                {outcome.rewardOptions.map((id, index) => (
+                  <li key={id} className="flex flex-col items-center gap-2">
+                    <PlayingCard
+                      cardId={id}
+                      size="md"
+                      dealDelayMs={index * 120}
+                      onClick={() => dispatch({ type: 'claim', cardId: id })}
+                    />
+                    <span className="text-xs text-ivory-dim">
+                      {RARITY_LABEL[getCard(id).rarity]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6">
+                <Button variant="ghost" onClick={() => dispatch({ type: 'claim', cardId: null })}>
+                  <Chip tone="gold" className="!w-6" /> Pular · +{SKIP_REWARD_CHIPS} fichas
+                </Button>
+                <p className="mt-2 text-xs text-ivory-dim">
+                  Escolher uma carta é opcional: pular dá fichas no lugar dela.
+                </p>
+              </div>
+            </>
+          ) : challenge.boss ? (
+            <>
+              <h2 id="recompensa-titulo" className="table-label">
+                O boss caiu
+              </h2>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ivory-dim">
+                Vencer o boss encerra a run, então não há carta para escolher.
+              </p>
+              <div className="mt-6">
+                <Button
+                  data-tutorial="continue"
+                  onClick={() => dispatch({ type: 'claim', cardId: null })}
+                >
+                  Concluir run
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 id="recompensa-titulo" className="table-label">
+                Nenhuma carta nova disponível
+              </h2>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ivory-dim">
+                {allUnlocked
+                  ? 'Você já tem todas as cartas do jogo.'
+                  : 'Você já tem todas as cartas que o seu nível libera. Suba de nível para desbloquear mais.'}{' '}
+                No lugar da carta, a casa paga +{SKIP_REWARD_CHIPS} fichas.
+              </p>
+              <div className="mt-6">
+                <Button
+                  data-tutorial="continue"
+                  onClick={() => dispatch({ type: 'claim', cardId: null })}
+                >
+                  <Chip tone="gold" className="!w-6" /> Continuar · +{SKIP_REWARD_CHIPS} fichas
+                </Button>
+              </div>
+            </>
+          )}
         </section>
       )}
     </div>

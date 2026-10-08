@@ -8,7 +8,7 @@ export function TopBar({ children }: { children?: React.ReactNode }) {
       <nav aria-label="Principal" className="flex items-center gap-2 sm:gap-3">
         <Link
           href="/colecao"
-          className="table-label px-2 py-2 text-ivory-dim transition-colors hover:text-ivory"
+          className="table-label inline-flex min-h-10 items-center px-2 text-ivory-dim transition-colors hover:text-ivory"
         >
           Coleção
         </Link>

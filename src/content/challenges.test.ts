@@ -66,7 +66,9 @@ describe('conteúdo dos desafios', () => {
     for (const c of ALL_CHALLENGES) {
       expect(c.starterCode, c.id).not.toMatch(jsLike);
       expect(c.solution.code, c.id).not.toMatch(jsLike);
-      expect(c.ladder.example, c.id).not.toMatch(jsLike);
+      expect(c.ladder.example ?? '', c.id).not.toMatch(jsLike);
+      // Só o boss pula o nível 4 da escada; os outros precisam do exemplo.
+      if (!c.boss) expect(c.ladder.example, c.id).toBeTruthy();
       for (const t of c.tests) expect(t.expr, `${c.id} ${t.name}`).not.toMatch(jsLike);
       expect(c.functionName, c.id).toMatch(/^[a-z_][a-z0-9_]*$/);
     }

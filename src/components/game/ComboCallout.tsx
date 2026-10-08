@@ -15,7 +15,7 @@ export function ComboCallout({ combos }: { combos: ActiveCombo[] }) {
   }, [key]);
   if (combos.length === 0) return null;
   return (
-    <ul className="space-y-2" aria-label="Combos ativos">
+    <ul className="space-y-2" aria-label="Combos de conceitos ativos">
       {combos.map(({ combo, bonus }, index) => (
         <li
           key={combo.id}
@@ -33,7 +33,8 @@ export function ComboCallout({ combos }: { combos: ActiveCombo[] }) {
             +{bonus.toFixed(2)} MULT
           </span>
           <span className="basis-full text-xs text-ivory-dim">
-            {combo.description}. Ativo porque este desafio usa os dois conceitos.
+            {combo.description}. Combo de conceitos: ativo porque você tem as duas cartas e o
+            desafio usa os dois conceitos. Soma ao multiplicador.
           </span>
         </li>
       ))}

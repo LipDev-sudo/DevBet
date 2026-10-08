@@ -5,13 +5,17 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { xpProgress } from '@/engine/progression';
-import { STARTER_PACKS } from '@/engine/run';
+import { STARTER_PACKS, TUTORIAL_PACK_ID } from '@/engine/run';
 import { useGame } from '../GameProvider';
 
 export function StartScreen() {
   const { state, dispatch } = useGame();
-  const [packId, setPackId] = useState<string>(STARTER_PACKS[0]?.id ?? 'logica');
   const profile = state.profile;
+  // Na primeira run, o Dealer recomenda o pacote com os conceitos do primeiro desafio.
+  const [packId, setPackId] = useState<string>(
+    profile.tutorialCompleted ? (STARTER_PACKS[0]?.id ?? 'logica') : TUTORIAL_PACK_ID,
+  );
+  const guided = !profile.tutorialCompleted;
   const xp = xpProgress(profile.xp);
 
   return (
@@ -27,24 +31,31 @@ export function StartScreen() {
 
       <fieldset>
         <legend className="sr-only">Pacote inicial</legend>
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-5 lg:grid-cols-3" data-tutorial="packs">
           {STARTER_PACKS.map((pack) => {
+            const locked = guided && pack.id !== TUTORIAL_PACK_ID;
             const selected = pack.id === packId;
             return (
               <label
                 key={pack.id}
-                className={`panel relative block cursor-pointer rounded-lg p-5 transition-all has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ivory ${selected ? 'ring-2 ring-ivory' : 'opacity-80 hover:opacity-100'}`}
+                className={`panel relative block rounded-lg p-5 transition-all has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ivory ${locked ? 'cursor-not-allowed opacity-45' : 'cursor-pointer'} ${selected ? 'ring-2 ring-ivory' : locked ? '' : 'opacity-80 hover:opacity-100'}`}
               >
                 <input
                   type="radio"
                   name="pack"
                   value={pack.id}
                   checked={selected}
+                  disabled={locked}
                   onChange={() => setPackId(pack.id)}
                   className="sr-only"
                 />
                 <span className="font-display text-xl font-bold text-ivory">{pack.name}</span>
                 <span className="mt-1 block min-h-10 text-sm text-ivory-dim">{pack.tagline}</span>
+                {locked && (
+                  <span className="mt-2 block text-xs text-ivory-dim">
+                    Disponível depois da primeira run.
+                  </span>
+                )}
                 <span className="mt-4 flex justify-center">
                   {pack.cards.map((id, index) => (
                     <span
@@ -64,6 +75,7 @@ export function StartScreen() {
 
       <div className="mt-10 flex flex-col items-center gap-3">
         <Button
+          data-tutorial="start-run"
           className="!px-12 !py-4 !text-base"
           onClick={() =>
             dispatch({ type: 'new-run', packId, seed: Math.floor(Math.random() * 2 ** 31) })
@@ -71,8 +83,11 @@ export function StartScreen() {
         >
           Sentar à mesa
         </Button>
-        <Link href="/colecao" className="table-label text-ivory-dim hover:text-ivory">
-          Ver coleção e combos
+        <Link
+          href="/colecao"
+          className="table-label inline-flex min-h-10 items-center text-ivory-dim hover:text-ivory"
+        >
+          Ver coleção e combos de conceitos
         </Link>
       </div>
 
