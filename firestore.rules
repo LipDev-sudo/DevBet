@@ -14,16 +14,16 @@ service cloud.firestore {
         && d.updatedAt == request.time;
     }
 
-    // Só entra no placar quem fez login com Google, e só no próprio registro.
-    function isGoogleUser(uid) {
-      return request.auth != null && request.auth.uid == uid
-        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    // Só quem está logado (inclusive o login anônimo, sem janela do Google) grava, e só o próprio registro.
+    // Para exigir Google de volta: && request.auth.token.firebase.sign_in_provider == 'google.com'.
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
     }
 
     match /leaderboard/{uid} {
       allow read: if true;
-      allow create: if isGoogleUser(uid) && validEntry(request.resource.data);
-      allow update: if isGoogleUser(uid)
+      allow create: if isOwner(uid) && validEntry(request.resource.data);
+      allow update: if isOwner(uid)
         && validEntry(request.resource.data)
         && request.resource.data.score > resource.data.score;
       allow delete: if false;

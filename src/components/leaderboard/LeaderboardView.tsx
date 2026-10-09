@@ -29,11 +29,9 @@ export function LeaderboardView({ compact = false }: { compact?: boolean }) {
     <div className="space-y-6">
       <section aria-label="Sua conta" className="panel rounded-lg p-4">
         <AccountMenu />
-        {user === null && (
-          <p className="mt-2 text-xs text-ivory-dim">
-            Entre para registrar sua pontuação. Só o apelido aparece no placar.
-          </p>
-        )}
+        <p className="mt-2 text-xs text-ivory-dim">
+          Escolha um apelido para registrar sua pontuação. Só o apelido aparece no placar.
+        </p>
       </section>
 
       {error && (

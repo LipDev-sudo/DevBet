@@ -20,7 +20,7 @@ function alreadySent(runId: string): boolean {
   }
 }
 
-/** Fim da run: envia a pontuação ao placar (uma vez por run) para quem entrou com Google e tem apelido. */
+/** Fim da run: envia a pontuação ao placar (uma vez por run) para quem está conectado ao placar e tem apelido. */
 export function ScoreSubmit({ run }: { run: RunState }) {
   const { configured, user, nickname } = useAccount();
   const [status, setStatus] = useState<Status>('idle');
@@ -61,7 +61,8 @@ export function ScoreSubmit({ run }: { run: RunState }) {
       {user === null && (
         <div className="mt-2 space-y-2">
           <p className="text-sm text-ivory-dim">
-            Entre com Google para registrar {run.score} pontos no placar. Só o seu apelido aparece.
+            Não deu para conectar ao placar agora, então os {run.score} pontos ainda não foram
+            registrados. Só o seu apelido aparece.
           </p>
           <AccountMenu />
         </div>

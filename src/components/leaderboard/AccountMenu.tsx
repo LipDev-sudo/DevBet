@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { NICKNAME_MAX } from '@/lib/leaderboard';
+import { AUTH_MODE } from '@/lib/leaderboard-client';
 import { useAccount } from './AccountProvider';
 
 /** Campo de apelido: o único dado que aparece no placar público. */
@@ -58,7 +59,7 @@ export function AccountMenu() {
     return (
       <div className="flex flex-col items-start gap-1">
         <Button size="sm" variant="ghost" onClick={() => void signIn()}>
-          Entrar com Google
+          {AUTH_MODE === 'anonymous' ? 'Tentar de novo' : 'Entrar com Google'}
         </Button>
         {error && (
           <p role="alert" className="text-xs text-crimson-hot">
@@ -70,9 +71,11 @@ export function AccountMenu() {
   }
   return (
     <div className="flex flex-col items-start gap-2">
-      <p role="status" className="text-sm font-bold text-ivory">
-        ✓ Conectado{user.displayName ? ` como ${user.displayName}` : ''}
-      </p>
+      {!user.anonymous && (
+        <p role="status" className="text-sm font-bold text-ivory">
+          ✓ Conectado{user.displayName ? ` como ${user.displayName}` : ''}
+        </p>
+      )}
       <p className="text-xs text-ivory-dim">
         No placar como <strong className="text-ivory">{nickname || 'sem apelido'}</strong>
       </p>
@@ -83,9 +86,11 @@ export function AccountMenu() {
           <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
             Trocar apelido
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => void signOut()}>
-            Sair
-          </Button>
+          {!user.anonymous && (
+            <Button size="sm" variant="ghost" onClick={() => void signOut()}>
+              Sair
+            </Button>
+          )}
         </div>
       )}
     </div>

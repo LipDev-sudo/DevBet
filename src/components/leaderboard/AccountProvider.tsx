@@ -4,6 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { NICKNAME_STORAGE_KEY, sanitizeNickname } from '@/lib/leaderboard';
 import {
+  AUTH_MODE,
+  signInAnonymouslyNow,
   signInWithGoogle,
   signOutUser,
   watchAuth,
@@ -32,6 +34,17 @@ function readNickname(): string {
   }
 }
 
+/** Mensagem para o jogador quando o login anônimo falha. */
+function describeAuthError(code: string): string {
+  if (code === 'auth/operation-not-allowed' || code === 'auth/admin-restricted-operation') {
+    return 'O login anônimo não está ligado no Firebase (Authentication → Sign-in method → Anônimo).';
+  }
+  if (code === 'auth/unauthorized-domain') {
+    return 'Este endereço não está autorizado no Firebase (Authentication → Domínios).';
+  }
+  return `Não foi possível conectar ao placar agora. (${code || 'erro'})`;
+}
+
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const configured = isFirebaseConfigured();
   const [user, setUser] = useState<SignedInUser | null | undefined>(configured ? undefined : null);
@@ -43,15 +56,20 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!configured) return;
-    return watchAuth(setUser);
+    return watchAuth(setUser, (code) => setError(describeAuthError(code)));
   }, [configured]);
 
   const signIn = useCallback(async () => {
     setError('');
     try {
-      await signInWithGoogle();
+      if (AUTH_MODE === 'anonymous') await signInAnonymouslyNow();
+      else await signInWithGoogle();
     } catch (e) {
       const code = (e as { code?: string }).code ?? '';
+      if (AUTH_MODE === 'anonymous') {
+        setError(describeAuthError(code));
+        return;
+      }
       if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
         setError('A janela do Google foi fechada antes de concluir. Tente de novo.');
       } else if (code === 'auth/popup-blocked') {

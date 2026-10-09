@@ -46,8 +46,8 @@ const text = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/
       'Tela final: seção do placar aparece',
     );
     check(
-      /Entrar com Google/i.test(await text(page)),
-      'Tela final: convida a entrar com Google para registrar a pontuação',
+      !/Entrar com Google/i.test(await text(page)),
+      'Tela final: sem login do Google (modo anônimo)',
     );
     check(
       !/e-?mail/i.test(
@@ -66,7 +66,11 @@ const text = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/
     await page.goto(f.BASE + '/placar', { waitUntil: 'load' });
     await page.waitForTimeout(2500);
     const t = await text(page);
-    check(/Entrar com Google/i.test(t), '/placar: botão "Entrar com Google" para quem não entrou');
+    check(!/Entrar com Google/i.test(t), '/placar: sem botão do Google (modo anônimo)');
+    check(
+      /Escolha um apelido|Tentar de novo|Apelido público/i.test(t),
+      '/placar: pede apelido (ou oferece tentar de novo se a conexão falhar)',
+    );
     check(!/não está ligado/i.test(t), '/placar: ligado com a configuração de teste');
   }
   // o jogo não depende do placar
@@ -79,7 +83,10 @@ const text = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/
 
   await browser.close();
   const real = errors.filter(
-    (e) => !/firestore|firebase|network|ERR_|HTTP 4|HTTP 5|googleapis|identitytoolkit/i.test(e),
+    (e) =>
+      !/firestore|firebase|network|ERR_|HTTP 4|HTTP 5|googleapis|identitytoolkit|Failed to load resource/i.test(
+        e,
+      ),
   );
   log('ERRORS', JSON.stringify(real));
   log(
