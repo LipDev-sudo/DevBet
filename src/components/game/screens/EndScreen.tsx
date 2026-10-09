@@ -128,7 +128,7 @@ export function EndScreen() {
           </h2>
           <ul className="flex flex-wrap justify-center gap-3">
             {run.jokers.map((id) => (
-              <li key={id}>
+              <li key={id} className="w-24 sm:w-28">
                 <JokerCard id={id} compact />
               </li>
             ))}

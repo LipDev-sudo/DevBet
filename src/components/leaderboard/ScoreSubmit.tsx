@@ -85,7 +85,10 @@ export function ScoreSubmit({ run }: { run: RunState }) {
         </p>
       )}
       <p className="mt-3 text-sm">
-        <Link href="/placar" className="underline underline-offset-4 hover:text-ivory">
+        <Link
+          href="/placar"
+          className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-ivory"
+        >
           Ver o placar ao vivo
         </Link>
       </p>

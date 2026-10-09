@@ -71,7 +71,7 @@ export function ShopScreen() {
         {shop.items.map((item, index) => (
           <li
             key={`${item.kind}-${index}`}
-            className="panel flex flex-col items-center gap-3 rounded-lg p-4"
+            className="panel flex min-w-0 flex-col items-center gap-3 rounded-lg p-4"
           >
             {item.kind === 'joker' && (
               <>

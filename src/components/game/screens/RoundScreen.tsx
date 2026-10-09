@@ -128,7 +128,7 @@ export function JokerRow({ run, activeId }: { run: RunState; activeId?: string |
   const { dispatch } = useGame();
   return (
     <section aria-label="Seus jokers" data-tutorial="jokers">
-      <ul className="grid grid-cols-5 items-stretch gap-1.5 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
+      <ul className="grid grid-cols-3 items-stretch gap-1.5 min-[380px]:grid-cols-5 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
         {Array.from({ length: JOKER_SLOTS }, (_, index) => {
           const id = run.jokers[index];
           return (

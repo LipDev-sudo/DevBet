@@ -69,11 +69,11 @@ export function StartScreen() {
                     Disponível depois da primeira run.
                   </span>
                 )}
-                <span className="mt-4 flex justify-center">
+                <span className="mt-4 flex justify-center overflow-hidden py-2">
                   {pack.cards.slice(0, 7).map((id, index) => (
                     <span
                       key={id}
-                      className="-mx-2"
+                      className={`-mx-2 ${index >= 6 ? 'hidden sm:block' : index >= 4 ? 'hidden min-[400px]:block' : ''}`}
                       style={{ transform: `rotate(${(index - 2) * 4}deg)` }}
                     >
                       <PlayingCard cardId={id} size="xs" />

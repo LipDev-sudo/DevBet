@@ -25,7 +25,8 @@
     "e2e:keyboard": "node e2e/keyboard.js",
     "e2e:persist": "node e2e/persist.js",
     "e2e:screens": "node e2e/screens.js",
-    "e2e:leaderboard": "node e2e/leaderboard.js"
+    "e2e:leaderboard": "node e2e/leaderboard.js",
+    "e2e:mobile": "node e2e/mobile.js"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

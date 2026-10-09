@@ -488,7 +488,7 @@ body {
     left: auto;
     top: auto;
     right: 8cqw;
-    bottom: 22cqw;
+    bottom: 24cqw;
     transform: rotate(180deg);
   }
   .pc-rank {
@@ -933,4 +933,96 @@ img,
 }
 .modal-close:active {
   background-image: url('/ui/close-pressed.png');
+}
+
+/* Cartas e jokers pequenos (mão no celular, fileira de jokers): o texto cresce em relação à largura deles. */
+@container (max-width: 104px) {
+  .pc-name[data-size='s'] {
+    font-size: 18cqw;
+  }
+  .pc-name[data-size='m'] {
+    font-size: 14.5cqw;
+  }
+  .pc-name[data-size='l'] {
+    font-size: 11.5cqw;
+  }
+  .pc-tag {
+    font-size: 8cqw;
+  }
+  .pc-rank[data-size='l'] {
+    font-size: 16cqw;
+  }
+  .pc-rank[data-size='m'] {
+    font-size: 13.5cqw;
+  }
+  .pc-rank[data-size='s'] {
+    font-size: 10.5cqw;
+  }
+  .pc-suit-s {
+    width: 10cqw;
+  }
+  .pc-band {
+    height: 25cqw;
+    font-size: 10.6cqw;
+    gap: 2cqw;
+  }
+  .pc-center {
+    bottom: 31cqw;
+    top: 14cqw;
+  }
+  .pc-index-end {
+    bottom: 27cqw;
+  }
+  .pc-rare {
+    font-size: 10cqw;
+  }
+  .pc-star {
+    width: 10cqw;
+  }
+}
+
+@container (max-width: 104px) {
+  .jk-label {
+    font-size: 10.5cqw;
+  }
+  .jk-name {
+    font-size: 11.6cqw;
+  }
+  .jk-tag {
+    font-size: 8.4cqw;
+  }
+  .jk-effect {
+    font-size: 10.8cqw;
+    padding: 2.5cqw 4cqw;
+  }
+}
+
+/* Cartas e jokers bem pequenos (prévias, mão em telas de 320 px): o texto de efeito não pode ficar ilegível. */
+@container (max-width: 72px) {
+  .pc-band {
+    font-size: 12.4cqw;
+  }
+  .pc-name[data-size='s'] {
+    font-size: 19cqw;
+  }
+  .pc-name[data-size='m'] {
+    font-size: 16cqw;
+  }
+  .pc-name[data-size='l'] {
+    font-size: 13cqw;
+  }
+}
+@container (max-width: 72px) {
+  .jk-name {
+    font-size: 13cqw;
+  }
+  .jk-effect {
+    font-size: 12.6cqw;
+  }
+  .jk-label {
+    font-size: 11.5cqw;
+  }
+  .jk-tag {
+    font-size: 9.4cqw;
+  }
 }
