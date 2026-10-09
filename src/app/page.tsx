@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { HomeLeaderboard } from '@/components/leaderboard/HomeLeaderboard';
 import { HomeCta } from '@/components/game/HomeCta';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { Dealer } from '@/components/dealer/Dealer';
@@ -44,6 +45,8 @@ export default function Home() {
           <div className="mt-10">
             <HomeCta />
           </div>
+
+          <HomeLeaderboard />
 
           <TableEnvironment
             table={TABLES[0] as TableDef}
