@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { GameProvider } from '@/components/game/GameProvider';
+import { AccountProvider } from '@/components/leaderboard/AccountProvider';
 import './globals.css';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
@@ -29,7 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Pular para o conteúdo
         </a>
-        <GameProvider>{children}</GameProvider>
+        <AccountProvider>
+          <GameProvider>{children}</GameProvider>
+        </AccountProvider>
       </body>
     </html>
   );

@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// Placar do DEVBet. Qualquer pessoa lê o ranking; só o próprio jogador logado grava o próprio registro,
+// com campos e limites fixos, e só para um resultado MELHOR que o anterior.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function validEntry(d) {
+      return d.keys().hasOnly(['nickname', 'score', 'bestHand', 'blindsCleared', 'won', 'updatedAt'])
+        && d.nickname is string && d.nickname.size() >= 2 && d.nickname.size() <= 16
+        && d.score is int && d.score > 0 && d.score <= 200000
+        && d.bestHand is int && d.bestHand >= 0 && d.bestHand <= d.score
+        && d.blindsCleared is int && d.blindsCleared >= 0 && d.blindsCleared <= 10
+        && d.won is bool
+        && d.updatedAt == request.time;
+    }
+
+    // Só entra no placar quem fez login com Google, e só no próprio registro.
+    function isGoogleUser(uid) {
+      return request.auth != null && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    match /leaderboard/{uid} {
+      allow read: if true;
+      allow create: if isGoogleUser(uid) && validEntry(request.resource.data);
+      allow update: if isGoogleUser(uid)
+        && validEntry(request.resource.data)
+        && request.resource.data.score > resource.data.score;
+      allow delete: if false;
+    }
+  }
+}

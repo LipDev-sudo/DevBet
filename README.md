@@ -9,18 +9,21 @@ As fichas são virtuais: não há dinheiro real, apostas reais nem compras dentr
 
 ## Gameplay
 
+O loop é o de um roguelike de cartas (blinds, mãos, descartes, jokers, loja), com uma diferença: **cada mão que você joga vira um exercício de Python**.
+
 ```
-Começar run → Desafio → Escolher risco → Escrever Python → Testes → Recompensa → Nova carta → … → Boss
+Blind (meta) → comprar 8 cartas → escolher 1–5 → Jogar mão → exercício de código → placar (fichas × mult) → … → blind vencida → loja → próxima blind → Boss
 ```
 
-- **Roguelike de programação.** Uma run é linear: seis mesas de aprendizado (FUNDAMENTALS, LOGIC, LOOPS, DATA, ALGORITHMS e HIGH TABLE), com lojas entre elas e um boss no final. As mesas têm identidade visual própria; o cenário não dá bônus.
-- **Python de verdade.** Você escreve código no editor (Monaco). **Executar** testa à vontade (só os testes visíveis, sem custo de pontos, até 60 vezes por desafio). **Entregar** roda também os testes ocultos: uma entrega errada custa 8% de precisão e entregar nunca é bloqueado. **Desistir** é sempre possível e conta como Bust.
-- **Cartas são conceitos de Python:** VARIABLE, CONDITION, FOR, LIST, DICTIONARY, FUNCTION, RECURSION, entre outros. Elas nunca resolvem o código por você: cada carta soma fichas e multiplicador, e o efeito dobra quando o desafio usa o conceito dela. Você começa com 7 cartas e recebe uma mão de 5; **Trocar mão** sorteia outra mão (uma vez por mesa).
-- **Combos de conceitos** exigem as duas cartas na mão e que o desafio use os dois conceitos. Exemplo: LIST + FOR = ITERATOR; FUNCTION + RECURSION = RECURSIVE ENGINE. A **sequência** de vitórias seguidas é outro bônus, separado.
-- **Risco/recompensa** com fichas fictícias: SAFE (×1.0), RISKY (×1.5, aposta 10) ou HIGH RISK (×2.0, aposta 25). O risco não muda a meta nem a chance de Bust: muda quanto você ganha e quanto pode perder. Vencer devolve a aposta e paga a recompensa multiplicada; um Bust custa a aposta e uma vida. Sem vidas, a run termina.
-- **Dealer.** Mentor ocasional que explica conceitos, reage ao tipo real do erro e oferece dicas em cinco níveis (Pergunta → Pista → Conceito → Exemplo parcial → Explicação), sempre a pedido do jogador. O custo de cada dica aparece antes de pedir.
-- **Primeira run guiada.** A primeira run de cada jogador é uma Tutorial Run: o Dealer ensina, passo a passo, o que já existe no jogo (cartas, combo de conceitos, Executar × Entregar, risco, Bust e vidas, dicas, loja e boss). Cada passo só avança com a ação real; as regras são as de sempre. Terminar a run (vencendo, perdendo ou abandonando) encerra o tutorial para sempre.
-- **Progressão.** XP e nível só desbloqueiam cartas nas lojas e recompensas. Perfil e run em andamento são salvos no `localStorage` do navegador, inclusive o resultado da última run até você começar outra. **Abandonar run** está disponível em qualquer etapa.
+- **Blinds.** Uma run tem 5 antes (FUNDAMENTALS, LOGIC, LOOPS, DATA, HIGH TABLE) com 2 blinds cada: a blind normal e um boss que muda uma regra (máx. 3 cartas, cartas de CONTROLE anuladas, 1 mão a menos, sem descartes, e o boss final THE INFINITE LOOP). Cada blind dá **4 mãos** e **3 descartes**; bata a meta de pontos antes de as mãos acabarem.
+- **Cartas são conceitos de Python** (VARIABLE, CONDITION, FOR, LIST, DICTIONARY, FUNCTION, RECURSION…). Você tem um baralho de 24 cartas e compra 8 a cada blind. As cartas jogadas formam mãos (PAIR, FLUSH, STRAIGHT, FULL HOUSE, ROYAL HAND) e combos de conceitos (LIST + FOR = ITERATOR…). A **primeira carta escolhida** decide o assunto do exercício; mãos de 4–5 cartas pedem um desafio completo, e de 1–3 um mini-desafio.
+- **Python de verdade.** Você escreve código no editor (Monaco). **Executar** testa à vontade (só os testes visíveis, sem custo, até 60 vezes por exercício). **Entregar** roda também os testes ocultos; entrega errada custa 10% de precisão e nunca é bloqueado. **Desistir** gasta a mão e vale 0.
+- **Placar.** Cada mão pontua (fichas × multiplicador): a mão certa, cada carta (o efeito dobra quando o exercício usa o conceito dela), combos e jokers, e por fim a precisão (erros e dicas pagas).
+- **Jokers são idiomas de Python** (list comprehension, ternário, f-string, any/all, builtins…) e só disparam quando o código que você **entrega** realmente usa o idioma. Cada joker mostra o que ensina e um exemplo.
+- **Loja.** Entre as blinds: jokers, cartas e aulas de mão (nível +10 fichas, +1 mult); fichas ganhas pela blind, pelas mãos que sobraram e juros.
+- **Dealer.** Mentor ocasional que reage ao tipo real do erro e oferece dicas em cinco níveis (Pergunta → Pista → Conceito → Exemplo parcial → Explicação), sempre a pedido do jogador. O custo de cada dica aparece antes de pedir.
+- **Primeira run guiada.** A primeira run é uma Tutorial Run: o Dealer ensina, passo a passo, o que existe no jogo (blind, mão, exercício, placar, descartes, loja e jokers, boss). Cada passo só avança com a ação real. Terminar a run (vencendo, perdendo ou abandonando) encerra o tutorial para sempre.
+- **Progressão.** XP e nível só desbloqueiam cartas nas lojas. Perfil e run em andamento são salvos no `localStorage`, inclusive o resultado da última run. **Abandonar run** está disponível em qualquer etapa.
 
 ## Desenvolvimento
 
@@ -46,11 +49,11 @@ npm run dev     # http://localhost:3000
 ### Estrutura
 
 ```
-src/engine      Regras puras do jogo (cartas, combos, mãos, pontuação, run, loja, dicas, Dealer)
-src/content     Desafios, áreas, mesas e trilha (dados)
+src/engine      Regras puras do jogo (cartas, combos, mãos, jokers, placar, blinds, loja, dicas, Dealer)
+src/content     Desafios, mini-desafios, áreas e mesas (dados)
 src/runner      Fronteira de execução de código (CodeExecutor) e limites
 src/lib         Persistência (SaveRepository) e reducer do jogo
-src/components  Interface (ui/ = base, game/ = telas, dealer/, tables/, world/)
+src/components  Interface (ui/ = base, game/ = telas, dealer/, tables/)
 public/sandbox  Runner Python executado dentro do Web Worker
 scripts         copy-assets.mjs: copia Monaco e Pyodide de node_modules para public/
 ```
@@ -75,18 +78,34 @@ Os scripts em `e2e/` dirigem o jogo real no Chromium via `playwright-core` (devD
 ```bash
 npm run build && npx next start -p 3100 &           # servidor de produção local
 npx playwright-core install chromium                # ou: export PLAYWRIGHT_CHROMIUM_PATH=/caminho/do/chromium
+npm run e2e:flow                # blind → mão → exercício → placar → loja → boss   (mobile: npm run e2e:flow -- mobile)
 npm run e2e:tutorial            # Tutorial Run completa, desktop 1280x900
 npm run e2e:tutorial:mobile     # idem, 390x844
-npm run e2e:edge                # loja, seguro, última vida, reload   (mobile: npm run e2e:edge -- mobile)
-npm run e2e:integrity -- 4      # executar/entregar, reload, abandono (argumentos: <cpu 1|4|8> [mobile])
+npm run e2e:edge                # regras de boss, loja, derrota e vitória        (mobile: npm run e2e:edge -- mobile)
+npm run e2e:integrity -- 4      # editor, Executar/Entregar, reload, abandono    (argumentos: <cpu 1|4|8> [mobile])
+npm run e2e:limits              # 60 execuções e Desistir
 npm run e2e:tabs                # duas abas / run encerrada
 npm run e2e:sandbox             # recursos bloqueados, mensagens de erro, código > 4000 caracteres
-npm run e2e:keyboard            # fluxo completo só por teclado (foco, modais, risco, loja)
+npm run e2e:keyboard            # fluxo completo só por teclado (foco, modais, cartas, loja)
 npm run e2e:persist -- 120      # reload <ms> após cada ação; hidratação sem escrita
+npm run e2e:leaderboard -- off  # placar desligado/ligado (veja a seção do placar)
 npm run e2e:screens             # screenshots desktop/mobile + checagem de overflow e alvos de toque
 ```
 
-Variáveis: `DEVBET_URL` (padrão `http://localhost:3100`), `PLAYWRIGHT_CHROMIUM_PATH`, `E2E_OUT` (screenshots; padrão `e2e/.out`, ignorado pelo git). Cada script termina com `ERRORS []`; os que fazem asserções (`integrity`, `sandbox`, `keyboard`, `persist`) terminam com `RESULT: ALL PASS`.
+Variáveis: `DEVBET_URL` (padrão `http://localhost:3100`), `PLAYWRIGHT_CHROMIUM_PATH`, `E2E_OUT` (screenshots; padrão `e2e/.out`, ignorado pelo git). Cada script termina com `ERRORS []`; os que fazem asserções terminam com `RESULT: ALL PASS`.
+
+### Placar de líderes (Firebase)
+
+Top 20 em tempo real. É **opcional**: sem as variáveis `NEXT_PUBLIC_FIREBASE_*` o placar fica desligado e o jogo funciona normalmente. Para entrar no placar é **obrigatório** entrar com Google; só o apelido (2–16 caracteres) aparece, nunca e-mail ou nome.
+
+1. Console do Firebase → crie o projeto → **Authentication** → ative o provedor **Google** → em _Authorized domains_ adicione o domínio do jogo.
+2. **Firestore Database** → crie o banco (modo de produção) → em _Regras_, publique o conteúdo de `firestore.rules`. Elas permitem leitura pública do ranking e só deixam o próprio jogador (login Google) gravar o próprio registro, com campos e limites fixos e só para um resultado melhor que o anterior.
+3. _Configurações do projeto → Seus apps → Web_: copie `apiKey`, `authDomain`, `projectId` e `appId` para as variáveis de `.env.example` (localmente em `.env.local`; na Vercel em _Settings → Environment Variables_). Essas chaves não são secretas; as regras protegem os dados.
+4. Faça um novo deploy. Os números do ranking vêm da pontuação total da run (`score`), um registro por jogador.
+
+Limitação: o jogo roda no navegador, então as regras só barram valores impossíveis (pontuação máxima, campos inválidos); não provam que a run foi jogada de verdade. Modere pelo console do Firestore se precisar.
+
+Teste da interface: `node e2e/leaderboard.js off` (build sem as variáveis) e `node e2e/leaderboard.js configured` (build com valores de teste em `NEXT_PUBLIC_FIREBASE_*`). O login real e a gravação no Firestore dependem do seu projeto e precisam de teste manual.
 
 ### Variáveis de ambiente
 

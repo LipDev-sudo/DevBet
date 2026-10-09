@@ -4,32 +4,14 @@ import Link from 'next/link';
 import { Dealer } from '@/components/dealer/Dealer';
 import { DealerDialogue } from '@/components/dealer/DealerDialogue';
 import { TableEnvironment } from '@/components/tables/TableEnvironment';
-import { TABLES } from '@/content/tables';
+import { ScoreSubmit } from '@/components/leaderboard/ScoreSubmit';
 import { Button } from '@/components/ui/Button';
+import { JokerCard } from '@/components/ui/JokerCard';
 import { PlayingCard } from '@/components/ui/PlayingCard';
-import { getChallenge } from '@/content/challenges';
+import { TABLES } from '@/content/tables';
+import { BLIND_COUNT } from '@/engine/blind';
 import { xpProgress } from '@/engine/progression';
 import { useGame } from '../GameProvider';
-
-/** Explica a derrota em termos de causa: precisão, ajuda ou falta de conceitos na mão. */
-function lossAdvice(entry: {
-  failedSubmissions?: number;
-  hintLevel?: number;
-  forfeit?: boolean;
-}): string {
-  const failedSubmissions = entry.failedSubmissions ?? 0;
-  const help = entry.hintLevel ?? 0;
-  if (entry.forfeit) {
-    return 'Você desistiu do desafio. Teste com Executar à vontade, que não custa pontos, antes de desistir.';
-  }
-  if (help >= 4 || failedSubmissions >= 3) {
-    return 'Dicas pagas e entregas erradas reduzem a precisão. Use Executar para testar à vontade e só entregue quando os testes visíveis passarem.';
-  }
-  if (failedSubmissions > 0 || help > 1) {
-    return 'Entregas erradas e dicas pagas custaram pontos. Releia a mensagem do teste antes de pedir ajuda: ela diz o que ficou diferente.';
-  }
-  return 'Seu código passou, mas a mão tinha poucos conceitos deste desafio. Escolha cartas que combinem com a mesa e procure combos de conceitos.';
-}
 
 const highTable = TABLES[TABLES.length - 1]!;
 
@@ -40,8 +22,8 @@ export function EndScreen() {
   const won = run.status === 'won';
   const abandoned = run.endReason === 'abandoned';
   const xp = xpProgress(state.profile.xp);
-  const lastBust = [...run.history].reverse().find((h) => h.bust);
-  const solvedCount = run.history.filter((h) => !h.bust).length;
+  const clearedCount = run.history.filter((h) => h.cleared).length;
+  const lost = run.history.find((h) => !h.cleared);
 
   return (
     <div className="screen-enter mx-auto max-w-3xl text-center">
@@ -76,7 +58,7 @@ export function EndScreen() {
                 ? 'Boa mão. A casa perdeu desta vez.'
                 : abandoned
                   ? 'Você abandonou a run. O XP que você ganhou continua salvo.'
-                  : 'A casa levou esta run. Revise o que errou e volte com um baralho melhor.'
+                  : 'Suas mãos acabaram antes da meta. Revise o código, junte combos e volte.'
             }
           />
         </div>
@@ -85,8 +67,8 @@ export function EndScreen() {
       <dl className="mx-auto mt-8 grid max-w-xl grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           ['Pontuação', String(run.score)],
+          ['Melhor mão', String(run.bestHand)],
           ['XP ganho', `+${run.xpEarned}`],
-          ['Fichas ao fim', String(run.chips)],
           ['Nível', String(xp.level)],
         ].map(([label, value]) => (
           <div key={label} className="panel rounded-lg px-3 py-4">
@@ -98,7 +80,9 @@ export function EndScreen() {
         ))}
       </dl>
 
-      {!won && !abandoned && lastBust && (
+      <ScoreSubmit run={run} />
+
+      {!won && !abandoned && lost && (
         <section
           aria-labelledby="motivo-titulo"
           className="panel mx-auto mt-6 max-w-xl p-5 text-left"
@@ -107,33 +91,50 @@ export function EndScreen() {
             Por que a casa venceu
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-ivory/90">
-            Em <strong>{getChallenge(lastBust.challengeId).title}</strong> você fez{' '}
-            <strong>{lastBust.forfeit ? 0 : lastBust.score} pts</strong> e a meta era{' '}
-            <strong>{lastBust.target ?? '—'}</strong>. Foi o Bust que acabou com suas vidas.
+            Em <strong>{lost.name}</strong> você fez <strong>{lost.score} pontos</strong> e a meta
+            era <strong>{lost.target}</strong>.
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-ivory-dim">{lossAdvice(lastBust)}</p>
+          <p className="mt-2 text-sm leading-relaxed text-ivory-dim">
+            Mãos maiores e combos de conceitos pontuam mais, e jokers premiam código bem escrito.
+            Use os descartes para buscar combos antes de jogar.
+          </p>
         </section>
       )}
 
       <p className="mt-6 text-sm text-ivory-dim">
-        {solvedCount} {solvedCount === 1 ? 'desafio resolvido' : 'desafios resolvidos'} nesta run.
+        {clearedCount} de {BLIND_COUNT} blinds vencidas nesta run.
       </p>
 
       <section className="mt-6 text-left" aria-labelledby="resumo-titulo">
         <h2 id="resumo-titulo" className="table-label mb-3 text-center">
-          Mesas jogadas
+          Blinds jogadas
         </h2>
         <ul className="panel divide-y divide-white/5 rounded-lg">
           {run.history.map((entry, index) => (
             <li key={index} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-              <span className="text-ivory">{getChallenge(entry.challengeId).title}</span>
-              <span className={entry.bust ? 'text-crimson-hot' : 'text-win'}>
-                {entry.bust ? 'Bust' : `+${entry.score}`}
+              <span className="text-ivory">{entry.name}</span>
+              <span className={entry.cleared ? 'text-win' : 'text-crimson-hot'}>
+                {entry.score} / {entry.target}
               </span>
             </li>
           ))}
         </ul>
       </section>
+
+      {run.jokers.length > 0 && (
+        <section className="mt-10" aria-labelledby="jokers-final-titulo">
+          <h2 id="jokers-final-titulo" className="table-label mb-4">
+            Seus jokers
+          </h2>
+          <ul className="flex flex-wrap justify-center gap-3">
+            {run.jokers.map((id) => (
+              <li key={id}>
+                <JokerCard id={id} compact />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="mt-10" aria-labelledby="deck-final-titulo">
         <h2 id="deck-final-titulo" className="table-label mb-4">

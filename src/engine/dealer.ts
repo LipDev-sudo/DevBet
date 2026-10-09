@@ -2,8 +2,6 @@ import type { ExecutionReport } from '@/runner/types';
 import { topLevelError } from './feedback';
 import type { DealerTone } from '@/content/tables';
 import type { Challenge } from './challenge';
-import type { EncounterOutcome } from './run';
-import type { previewHand } from './scoring';
 
 /** Estados visuais do Dealer. */
 export type Mood = 'idle' | 'thinking' | 'success' | 'error' | 'serious' | 'boss';
@@ -126,48 +124,4 @@ export function reactToRun(input: {
           };
     }
   }
-}
-
-/** Explica o Bust pela causa real: desistência, precisão perdida ou mão que rendeu pouco. */
-function explainBust(outcome: EncounterOutcome): string {
-  if (outcome.forfeit) {
-    return 'Você desistiu do desafio. A casa cobra uma vida e a aposta fica na mesa.';
-  }
-  const result = `${outcome.score.total} de ${outcome.target} pts`;
-  if (outcome.score.precision < 1) {
-    return `Bust. O código passou, mas entregas erradas e dicas baixaram a precisão para ×${outcome.score.precision.toFixed(2)}: ${result}.`;
-  }
-  return `Bust. O código passou sem perder precisão, mas a mão rendeu só ${result}. Cartas que casam com o desafio dobram de efeito.`;
-}
-
-/** Reação ao resultado final da mesa. */
-export function reactToOutcome(challenge: Challenge, outcome: EncounterOutcome): DealerLine {
-  if (outcome.bust) {
-    return { mood: 'serious', kind: 'bust', text: explainBust(outcome) };
-  }
-  if (challenge.boss) {
-    return { mood: 'success', kind: 'success', text: 'Boa mão. O boss caiu.' };
-  }
-  if (outcome.efficient) {
-    return { mood: 'success', kind: 'efficient', text: 'Boa solução. E eficiente.' };
-  }
-  if (outcome.jackpot) return { mood: 'success', kind: 'success', text: 'Boa mão. De primeira.' };
-  return { mood: 'success', kind: 'success', text: 'Boa mão.' };
-}
-
-/** O Dealer explica a mão: quais cartas representam conceitos do desafio e qual combo isso forma. */
-export function explainHand(preview: ReturnType<typeof previewHand>): string {
-  const boosted = preview.lines.filter((l) => l.boosted).map((l) => l.name);
-  const sentences: string[] = [];
-  if (boosted.length > 0) {
-    sentences.push(
-      `${boosted.join(', ')} ${boosted.length > 1 ? 'representam' : 'representa'} conceitos que este desafio usa: efeito dobrado.`,
-    );
-  }
-  const combo = preview.combos[0];
-  if (combo) sentences.push(`${combo.combo.name} está ativo: ${combo.combo.description}.`);
-  if (sentences.length === 0) {
-    sentences.push('Nenhuma carta desta mão se aplica a este desafio. Você pode trocá-la uma vez.');
-  }
-  return sentences.join(' ');
 }

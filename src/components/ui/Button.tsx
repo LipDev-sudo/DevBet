@@ -1,10 +1,12 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, Ref } from 'react';
 
 type Variant = 'brass' | 'crimson' | 'felt' | 'ghost';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: 'md' | 'sm';
+  /** React 19 repassa `ref` como prop comum. */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 export function Button({

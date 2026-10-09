@@ -1,25 +1,15 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { ALL_CHALLENGES, BOSS_CHALLENGE, getChallenge } from '@/content/challenges';
 import { AREAS } from '@/content/areas';
-import { RUN_LAYERS } from '@/content/map';
 import { getTableByArea, TABLES, tableLabel } from '@/content/tables';
 import { createNodeExecutor } from '@/runner/node-executor';
 import type { ExecutionReport } from '@/runner/types';
-import { briefChallenge, explainHand, reactToOutcome, reactToRun, restingMood } from './dealer';
+import { ANTES, createRun, playHand, registerFailure, requestHint, startBlind } from './blind';
+import type { Result, RunState } from './blind';
+import { briefChallenge, reactToRun, restingMood } from './dealer';
 import { buildFeedback } from './feedback';
 import { hintBlockedReason, nextHintLevel, scoredHints } from './hints';
 import { createProfile } from './progression';
-import {
-  chooseChallenge,
-  createRun,
-  requestHint,
-  registerFailure,
-  resolveEncounter,
-  startChallenge,
-  type Result,
-  type RunState,
-} from './run';
-import { previewHand } from './scoring';
 
 const executor = createNodeExecutor();
 afterAll(() => executor.dispose?.());
@@ -28,18 +18,17 @@ const unwrap = <T>(r: Result<T>): T => {
   return r.state;
 };
 
-function inChallenge(challengeId: string, atLayer = 0): RunState {
-  const run = unwrap(createRun('logica', 4, createProfile()));
-  return unwrap(
-    startChallenge(unwrap(chooseChallenge({ ...run, layerIndex: atLayer }, challengeId))),
-  );
+/** Run no meio de um exercício específico (o de uma mão jogada, trocado pelo exercício pedido). */
+function inCoding(exerciseId: string): RunState {
+  const run = unwrap(startBlind(unwrap(createRun('logica', 4, createProfile()))));
+  const played = unwrap(playHand(run, [run.round!.hand[0]!]));
+  const round = played.round!;
+  return { ...played, round: { ...round, play: { ...round.play!, exerciseId } } };
 }
 
 describe('mesas', () => {
   it('cada área de desafio tem exatamente uma mesa, e a trilha passa por todas', () => {
-    for (const layer of RUN_LAYERS) {
-      if (layer.kind !== 'shop') expect(getTableByArea(layer.areaId)).toBeDefined();
-    }
+    for (const ante of ANTES) expect(getTableByArea(ante.areaId)).toBeDefined();
     expect(TABLES.map((t) => t.number)).toEqual([1, 2, 3, 4, 5, 0]);
     expect(new Set(TABLES.map((t) => t.areaId)).size).toBe(TABLES.length);
     for (const table of TABLES) expect(AREAS.some((a) => a.id === table.areaId)).toBe(true);
@@ -86,21 +75,21 @@ describe('escada de dicas', () => {
   });
 
   it('pedir dicas registra o nível e penaliza a pontuação', () => {
-    let run = inChallenge('somar-ate', 3);
+    let run = inCoding('somar-ate');
     run = unwrap(requestHint(run));
-    expect(run.encounter?.hintLevel).toBe(1);
-    expect(run.encounter?.voluntaryHints).toBe(0);
+    expect(run.round?.play?.hintLevel).toBe(1);
+    expect(scoredHints(run.round!.play!.hintLevel)).toBe(0);
     run = unwrap(requestHint(run));
     run = unwrap(requestHint(run));
-    expect(run.encounter?.voluntaryHints).toBe(2);
+    expect(scoredHints(run.round!.play!.hintLevel)).toBe(2);
     expect(requestHint(unwrap(requestHint(run))).ok).toBe(false); // nível 5 bloqueado sem falhas
     for (let i = 0; i < 4; i++) run = registerFailure(run, 'run');
     run = unwrap(requestHint(unwrap(requestHint(run))));
-    expect(run.encounter?.hintLevel).toBe(5);
-    expect(run.encounter?.solutionViewed).toBe(true);
+    expect(run.round?.play?.hintLevel).toBe(5);
+    expect(run.round?.play?.solutionViewed).toBe(true);
   });
 
-  it('não permite pedir ajuda fora de um desafio', () => {
+  it('não permite pedir ajuda fora de um exercício', () => {
     expect(requestHint(unwrap(createRun('logica', 1, createProfile()))).ok).toBe(false);
   });
 });
@@ -156,56 +145,7 @@ describe('reações do Dealer', () => {
     expect(reactToRun({ ...base, report: r, allPassed: true }).text).toMatch(/Boa mão/);
   });
 
-  it('reconhece solução eficiente, acerto de primeira, boss e bust', () => {
-    const run = unwrap(
-      startChallenge(
-        unwrap(chooseChallenge(unwrap(createRun('dados', 2, createProfile())), 'calcular-total')),
-      ),
-    );
-    const solve = (id: string, code: string, fail = 0, streak = 6) => {
-      let r = unwrap(
-        startChallenge(
-          unwrap(
-            chooseChallenge(
-              {
-                ...unwrap(createRun('dados', 2, createProfile())),
-                streak,
-                layerIndex: id === 'somar-ate' ? 3 : id === 'boss-infinite-loop' ? 8 : 0,
-              },
-              id,
-            ),
-          ),
-        ),
-      );
-      for (let i = 0; i < fail; i++) r = registerFailure(r, 'submit');
-      r = { ...r, encounter: r.encounter && { ...r.encounter, draft: code } };
-      return resolveEncounter(r, createProfile()).run.encounter!.outcome!;
-    };
-    void run;
-    const formula = solve('somar-ate', 'def somar_ate(n):\n    return n * (n + 1) // 2');
-    expect(reactToOutcome(getChallenge('somar-ate'), formula).text).toMatch(
-      /Boa solução. E eficiente/,
-    );
-    const loop = solve('somar-ate', getChallenge('somar-ate').solution.code);
-    expect(loop.efficient).toBe(false);
-    expect(reactToOutcome(getChallenge('somar-ate'), loop).text).toMatch(/De primeira/);
-    const boss = solve('boss-infinite-loop', BOSS_CHALLENGE.solution.code);
-    expect(reactToOutcome(BOSS_CHALLENGE, boss).text).toMatch(/O boss caiu/);
-    const bust = solve('calcular-total', 'x', 9, 0);
-    expect(reactToOutcome(getChallenge('calcular-total'), bust).text).toMatch(/^Bust/);
-  });
-
-  it('explica a mão e o desafio de forma curta', () => {
-    const hand = ['list', 'for'].map((cardId, i) => ({
-      uid: `u${i}`,
-      cardId: cardId as never,
-      upgrade: 0,
-    }));
-    const text = explainHand(previewHand(hand, ['list', 'for']));
-    expect(text).toMatch(/ITERATOR/);
-    expect(text).toMatch(/LIST, FOR representam conceitos/);
-    const none = [{ uid: 'a', cardId: 'variable' as never, upgrade: 0 }];
-    expect(explainHand(previewHand(none, ['for']))).toMatch(/Nenhuma carta desta mão/);
+  it('descreve o desafio de forma curta', () => {
     expect(briefChallenge(BOSS_CHALLENGE)).toMatch(/High Table/);
     expect(briefChallenge(getChallenge('somar-ate')).length).toBeLessThan(120);
   });
@@ -250,45 +190,5 @@ describe('o Dealer descreve a situação real', () => {
     expect(reactToRun({ ...third, report: syntax }).kind).toBe('syntax');
     expect(reactToRun({ ...third, report: crash }).kind).toBe('runtime');
     expect(reactToRun({ ...third, report: wrong }).kind).toBe('retry');
-  });
-
-  describe('Bust pela causa real', () => {
-    const entered = () =>
-      startChallenge(
-        unwrap(chooseChallenge(unwrap(createRun('logica', 4, createProfile())), 'calcular-total')),
-      );
-    const outcome = (mutate?: (r: RunState) => RunState) =>
-      resolveEncounter(mutate ? mutate(unwrap(entered())) : unwrap(entered()), createProfile()).run
-        .encounter!.outcome!;
-
-    it('precisão perdida: cita entregas erradas e dicas e a precisão', () => {
-      const o = outcome((r) => {
-        let next = r;
-        for (let i = 0; i < 9; i++) next = registerFailure(next, 'submit');
-        return next;
-      });
-      expect(o.bust).toBe(true);
-      const text = reactToOutcome(getChallenge('calcular-total'), o).text;
-      expect(text).toMatch(/entregas erradas e dicas/);
-      expect(text).toMatch(/×0\.40/);
-    });
-
-    it('mão fraca: não culpa erros nem dicas quando a precisão está intacta', () => {
-      const o = outcome();
-      const weak = {
-        ...o,
-        bust: true,
-        score: { ...o.score, precision: 1, total: 100 },
-        target: 480,
-      };
-      const text = reactToOutcome(getChallenge('calcular-total'), weak).text;
-      expect(text).toMatch(/a mão rendeu só 100 de 480/);
-      expect(text).not.toMatch(/erros e dicas custaram/i);
-    });
-
-    it('desistência é descrita como desistência', () => {
-      const o = { ...outcome(), bust: true, forfeit: true };
-      expect(reactToOutcome(getChallenge('calcular-total'), o).text).toMatch(/desistiu/);
-    });
   });
 });

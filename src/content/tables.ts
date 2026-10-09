@@ -1,4 +1,3 @@
-import { RUN_LAYERS } from './map';
 import { BOSS_CHALLENGE } from './challenges';
 
 /** Como o Dealer se comporta e como o ambiente se apresenta. Evolui junto com o jogador. */
@@ -193,13 +192,4 @@ export function tableLabel(table: TableDef): string {
   return table.number === 0
     ? table.name
     : `TABLE ${String(table.number).padStart(2, '0')} — ${table.name}`;
-}
-
-/** Mesa associada a uma posição da trilha. Lojas herdam a próxima mesa (ou a última). */
-export function tableForLayer(layerIndex: number): TableDef {
-  for (let i = layerIndex; i < RUN_LAYERS.length; i++) {
-    const layer = RUN_LAYERS[i];
-    if (layer && layer.kind !== 'shop') return getTableByArea(layer.areaId);
-  }
-  return TABLES[TABLES.length - 1] as TableDef;
 }

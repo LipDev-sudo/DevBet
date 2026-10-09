@@ -1,6 +1,6 @@
 import type { ExecutionReport, TestResult } from '@/runner/types';
 import type { Challenge } from './challenge';
-import { FAILURES_FOR_SOLUTION } from './scoring';
+import { FAILURES_FOR_SOLUTION } from './handscore';
 
 export interface Feedback {
   /** Título curto do problema. */

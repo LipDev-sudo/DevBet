@@ -1,23 +1,8 @@
 // Captura as telas principais (desktop 1280x900 e mobile 390x844) e roda checagens objetivas de layout:
 // overflow horizontal, alvos de toque pequenos, texto cortado. Screenshots em E2E_OUT.
-const { launch, loadSolutions, BASE, OUT } = require('./lib.cjs');
-const sols = loadSolutions();
-const byTitle = Object.fromEntries(Object.entries(sols).map(([, v]) => [v.title, v.solution]));
+const f = require('./flow.cjs');
 const log = console.log;
 const errors = [];
-const setRun = (page, src) =>
-  page.evaluate((s) => {
-    const k = 'devbet:run:v1';
-    const r = JSON.parse(localStorage.getItem(k));
-    new Function('r', s)(r);
-    localStorage.setItem(k, JSON.stringify(r));
-  }, src);
-const setCode = async (page, code) => {
-  await page.waitForFunction(() => window.monaco && window.monaco.editor.getEditors().length > 0);
-  await page.waitForTimeout(1500);
-  await page.evaluate((c) => window.monaco.editor.getEditors()[0].setValue(c), code);
-  await page.waitForTimeout(300);
-};
 
 async function layoutCheck(page, name, mobile) {
   const r = await page.evaluate(
@@ -30,32 +15,21 @@ async function layoutCheck(page, name, mobile) {
         offscreen: [],
       };
       const vw = doc.clientWidth;
+      const skip = (el) =>
+        el.closest('.monaco-editor') || el.closest('.sr-only') || el.classList.contains('sr-only');
       for (const el of document.querySelectorAll(
         'button, a[href], input, select, summary, [role=button]',
       )) {
         const b = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
-        if (b.width === 0 || b.height === 0 || cs.visibility === 'hidden') continue;
-        if (
-          el.closest('.monaco-editor') ||
-          el.classList.contains('sr-only') ||
-          el.matches('a[href="#conteudo"]')
-        )
-          continue;
+        if (b.width === 0 || b.height === 0 || cs.visibility === 'hidden' || skip(el)) continue;
+        const label = (el.innerText || el.getAttribute('aria-label') || '').trim().slice(0, 24);
         if (mobile && (b.height < 36 || b.width < 36) && el.type !== 'radio')
-          out.small.push(
-            `${el.tagName}:${(el.innerText || el.getAttribute('aria-label') || '').trim().slice(0, 24)} ${Math.round(b.width)}x${Math.round(b.height)}`,
-          );
-        if (b.right > vw + 1 || b.left < -1)
-          out.offscreen.push((el.innerText || '').trim().slice(0, 24));
+          out.small.push(`${el.tagName}:${label} ${Math.round(b.width)}x${Math.round(b.height)}`);
+        if (b.right > vw + 1 || b.left < -1) out.offscreen.push(label);
       }
       for (const el of document.querySelectorAll('h1,h2,h3,p,span,button,a,li,label')) {
-        if (
-          el.closest('.monaco-editor') ||
-          el.classList.contains('sr-only') ||
-          el.matches('a[href="#conteudo"]')
-        )
-          continue;
+        if (skip(el)) continue;
         const cs = getComputedStyle(el);
         if (
           el.scrollWidth > el.clientWidth + 2 &&
@@ -77,86 +51,67 @@ async function layoutCheck(page, name, mobile) {
 async function run(browser, mobile) {
   const tag = mobile ? 'm' : 'd';
   log(`==== ${mobile ? 'mobile 390x844' : 'desktop 1280x900'}`);
-  const ctx = await browser.newContext(
-    mobile
-      ? { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }
-      : { viewport: { width: 1280, height: 900 } },
-  );
-  await ctx.addInitScript(() => {
-    if (!localStorage.getItem('devbet:profile:v1'))
-      localStorage.setItem(
-        'devbet:profile:v1',
-        JSON.stringify({
-          version: 1,
-          xp: 0,
-          runsPlayed: 1,
-          runsWon: 0,
-          bestRunScore: 0,
-          solved: {},
-          seenCards: [],
-          tutorialCompleted: true,
-        }),
-      );
-  });
-  const page = await ctx.newPage();
-  page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message.slice(0, 160)));
-  page.on(
-    'console',
-    (m) =>
-      ['error', 'warning'].includes(m.type()) &&
-      errors.push(m.type() + ' ' + m.text().slice(0, 160)),
-  );
+  const { ctx, page, errors: errs } = await f.open(browser, { mobile });
   const snap = async (name, full = true) => {
     await page.waitForTimeout(700);
-    await page.screenshot({ path: `${OUT}/vis-${tag}-${name}.png`, fullPage: full });
+    await page.screenshot({ path: `${f.OUT}/vis-${tag}-${name}.png`, fullPage: full });
     await layoutCheck(page, name, mobile);
   };
-  await page.goto(BASE + '/', { waitUntil: 'load' });
-  await snap('1-home');
-  await page.goto(BASE + '/play', { waitUntil: 'load' });
-  await snap('2-start');
-  await page.getByText('Sentar à mesa').click();
-  await snap('3-lobby');
-  await page.locator('ol button').filter({ hasText: 'Meta' }).first().click();
-  await snap('4-table');
-  await page.getByRole('button', { name: 'Começar desafio' }).click();
-  await page.waitForTimeout(800);
-  const title = (await page.locator('h1').first().innerText()).trim();
-  await snap('5-challenge');
-  await setCode(page, 'def f(:\n  return 1/0');
+  await page.goto(f.BASE + '/', { waitUntil: 'load' });
+  await snap('01-home');
+  await page.goto(f.BASE + '/colecao', { waitUntil: 'load' });
+  await snap('02-colecao');
+  await page.goto(f.BASE + '/play', { waitUntil: 'load' });
+  await snap('03-start');
+  await f.startRun(page);
+  await snap('04-blind');
+  await f.startBlind(page);
+  await snap('05-round');
+  const cards = page.locator('[data-tutorial="hand"] button');
+  for (let i = 0; i < 3; i++) await cards.nth(i).click();
+  await snap('06-selected');
+  await page.getByRole('button', { name: 'Jogar mão' }).click();
+  await page.waitForTimeout(1500);
+  await snap('07-coding');
+  const title = await f.exerciseTitle(page);
+  await f.setCode(page, 'def x(:\n  return 1/0');
   await page.getByRole('button', { name: 'Executar' }).click();
   await page.waitForTimeout(4000);
-  await snap('6-challenge-error');
+  await snap('08-coding-error');
   await page.getByRole('button', { name: /Abandonar run/ }).click();
   await page.waitForTimeout(300);
-  await snap('7-abandon-modal', false);
+  await snap('09-abandon-modal', false);
   await page.keyboard.press('Escape');
-  await setCode(page, byTitle[title]);
+  await f.setCode(page, f.solutionFor(title));
   await page.getByRole('button', { name: 'Entregar' }).click();
-  await page.getByRole('heading', { name: /BUST|MÃO VENCEDORA/ }).waitFor({ timeout: 25000 });
-  await snap('8-result');
-  await setRun(
+  await page
+    .getByRole('button', { name: /Continuar|Blind vencida|Suas mãos acabaram/ })
+    .waitFor({ timeout: 30000 });
+  await page.waitForTimeout(3500);
+  await snap('10-score');
+  await f.forge(
     page,
-    "r.status='shop'; r.layerIndex=2; r.chips=60; r.encounter=null; r.shop={offers:['while','set','search'],rerolls:0,boughtLife:false};",
+    "r.status='cleared'; r.round.roundScore = r.round.target; r.round.payout = { blind: 3, handsLeft: 3, interest: 1, total: 7 }; r.round.last = r.round.last;",
   );
-  await page.reload({ waitUntil: 'load' });
-  await snap('9-shop');
-  await setRun(page, "r.status='map'; r.layerIndex=8; r.encounter=null; r.shop=null;");
-  await page.reload({ waitUntil: 'load' });
-  await snap('10-boss-lobby');
-  await page.locator('ol button').filter({ hasText: 'Meta' }).first().click();
-  await snap('11-boss-table');
-  await page.getByRole('button', { name: /Começar desafio/ }).click();
-  await page.waitForTimeout(1500);
-  await snap('12-boss-challenge');
+  await snap('11-cleared');
+  await f.forge(
+    page,
+    "r.status='shop'; r.round=null; r.money=14; r.jokers=['fstring']; r.shop={items:[{kind:'joker',id:'comprehension',price:8},{kind:'joker',id:'ternary',price:5},{kind:'card',cardId:'while',price:4},{kind:'card',cardId:'search',price:5},{kind:'hand',rank:'flush',price:5}],rerolls:0};",
+  );
+  await snap('12-shop');
+  await f.forge(page, "r.status='blind'; r.ante=1; r.blindIndex=1; r.shop=null; r.round=null;");
+  await snap('13-boss-blind');
+  await f.startBlind(page);
+  await snap('14-boss-round');
   await page.getByRole('button', { name: /Abandonar run/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Abandonar' }).click();
-  await snap('13-end');
+  await snap('15-end');
+  errors.push(...errs);
   await ctx.close();
 }
 
 (async () => {
-  const browser = await launch();
+  const browser = await f.launch();
   await run(browser, false);
   await run(browser, true);
   await browser.close();

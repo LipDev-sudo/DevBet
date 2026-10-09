@@ -1,8 +1,10 @@
-import { ALL_CHALLENGES } from '@/content/challenges';
+import { hasExercise } from '@/content/exercises';
 import { CARDS, LEGACY_CARD_IDS } from '@/engine/cards';
 import { createProfile, type Profile } from '@/engine/progression';
-import type { RunState, RunStatus } from '@/engine/run';
+import { ANTES, type RunState, type RunStatus } from '@/engine/blind';
+import { isJokerId } from '@/engine/jokers';
 import { parseTutorial } from '@/engine/tutorial-state';
+import type { CardId } from '@/engine/types';
 
 /**
  * Persistência atrás de uma interface: hoje LocalStorage, amanhã uma API com PostgreSQL / cloud save.
@@ -22,10 +24,11 @@ export const STORAGE_KEYS = {
 } as const;
 
 const RUN_STATUSES: readonly RunStatus[] = [
-  'map',
-  'table',
-  'challenge',
-  'reward',
+  'blind',
+  'round',
+  'coding',
+  'scored',
+  'cleared',
   'shop',
   'won',
   'lost',
@@ -78,70 +81,68 @@ function migrateCardId(id: unknown): string | null {
 const mapCardIds = (ids: unknown): string[] =>
   Array.isArray(ids) ? ids.map(migrateCardId).filter((id): id is string => id !== null) : [];
 
-/**
- * Saves da versão 1 (JavaScript): converte cartas para conceitos Python, aposta em risco e descarta
- * o rascunho de código (era JavaScript). Runs presas a desafios que não existem mais são descartadas;
- * o perfil (XP, recordes) sempre é preservado.
- */
-function migrateV1(raw: Record<string, unknown>): Record<string, unknown> | null {
-  const deck = Array.isArray(raw.deck)
-    ? raw.deck.flatMap((entry) => {
-        if (!isRecord(entry)) return [];
-        const cardId = migrateCardId(entry.cardId);
-        return cardId ? [{ ...entry, cardId }] : [];
-      })
-    : [];
-  const next: Record<string, unknown> = { ...raw, version: 2, deck };
-  if (isRecord(raw.shop)) next.shop = { ...raw.shop, offers: mapCardIds(raw.shop.offers) };
-  if (isRecord(raw.encounter)) {
-    const encounter = { ...raw.encounter } as Record<string, unknown>;
-    const stake = typeof encounter.stake === 'number' ? encounter.stake : 0;
-    encounter.risk = stake === 0 ? 'safe' : stake <= 10 ? 'risky' : 'high';
-    delete encounter.stake;
-    encounter.draft = null;
-    if (isRecord(encounter.outcome)) {
-      encounter.outcome = {
-        ...encounter.outcome,
-        risk: encounter.risk,
-        rewardOptions: mapCardIds(encounter.outcome.rewardOptions),
-      };
-    }
-    next.encounter = encounter;
-  }
-  return next;
-}
+const strings = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
 
 /** Aceita runs que o motor atual consegue retomar com segurança, inclusive as já encerradas (tela final). */
 export function parseRun(input: unknown): RunState | null {
-  let raw = input;
-  if (isRecord(raw) && raw.version === 1) raw = migrateV1(raw);
-  if (!isRecord(raw) || raw.version !== 2) return null;
-  if (typeof raw.status !== 'string' || !RUN_STATUSES.includes(raw.status as RunStatus))
+  // Saves de versões anteriores (outro formato de jogo) não são retomáveis; o perfil é sempre preservado.
+  if (!isRecord(input) || input.version !== 3) return null;
+  if (typeof input.status !== 'string' || !RUN_STATUSES.includes(input.status as RunStatus)) {
     return null;
-  if (!Array.isArray(raw.deck) || raw.deck.length === 0) return null;
-  if (typeof raw.layerIndex !== 'number' || typeof raw.chips !== 'number') return null;
-  if (typeof raw.lives !== 'number' || typeof raw.seed !== 'number') return null;
-  const knownChallenges = new Set(ALL_CHALLENGES.map((c) => c.id));
-  const encounter = raw.encounter;
-  if (isRecord(encounter) && !knownChallenges.has(String(encounter.challengeId))) return null;
-  const parsed = raw as unknown as RunState;
-  // O histórico alimenta a tela final: entradas de desafios que não existem mais seriam um erro de tela.
-  const history = Array.isArray(raw.history)
-    ? raw.history.filter(
-        (entry) => isRecord(entry) && knownChallenges.has(String(entry.challengeId)),
-      )
-    : [];
-  const run: RunState = {
-    ...parsed,
-    history: history as RunState['history'],
-    tutorial: parseTutorial(raw.tutorial),
-    endReason: raw.endReason === 'abandoned' ? 'abandoned' : undefined,
-  };
-  // Saves anteriores à escada de dicas não têm hintLevel.
-  if (run.encounter && typeof run.encounter.hintLevel !== 'number') {
-    return { ...run, encounter: { ...run.encounter, hintLevel: 0 } };
   }
-  return run;
+  if (!Array.isArray(input.deck) || input.deck.length === 0) return null;
+  if (typeof input.money !== 'number' || typeof input.seed !== 'number') return null;
+  if (typeof input.ante !== 'number' || (input.blindIndex !== 0 && input.blindIndex !== 1)) {
+    return null;
+  }
+  if (!ANTES[input.ante]) return null;
+  const deck = input.deck.flatMap((entry) => {
+    if (!isRecord(entry) || typeof entry.uid !== 'string') return [];
+    const cardId = migrateCardId(entry.cardId);
+    const upgrade = typeof entry.upgrade === 'number' ? entry.upgrade : 0;
+    return cardId ? [{ uid: entry.uid, cardId: cardId as CardId, upgrade }] : [];
+  });
+  if (deck.length !== input.deck.length) return null;
+  const uids = new Set(deck.map((card) => card.uid));
+
+  let round: RunState['round'] = null;
+  if (input.round !== null && input.round !== undefined) {
+    const r = input.round;
+    if (!isRecord(r) || typeof r.blindId !== 'string') return null;
+    const hand = strings(r.hand);
+    const drawPile = strings(r.drawPile);
+    const discardPile = strings(r.discardPile);
+    if (![...hand, ...drawPile, ...discardPile].every((uid) => uids.has(uid))) return null;
+    const play = r.play;
+    if (isRecord(play)) {
+      if (!hasExercise(String(play.exerciseId))) return null;
+      if (!strings(play.uids).every((uid) => uids.has(uid))) return null;
+    }
+    const last = r.last;
+    if (isRecord(last) && !hasExercise(String(last.exerciseId))) return null;
+    round = r as unknown as NonNullable<RunState['round']>;
+  }
+  const status = input.status as RunStatus;
+  if (['round', 'coding', 'scored', 'cleared'].includes(status) && !round) return null;
+  if (status === 'coding' && !round?.play) return null;
+  if (status === 'scored' && !round?.last) return null;
+  if (status === 'shop' && !isRecord(input.shop)) return null;
+
+  const history = Array.isArray(input.history)
+    ? input.history.filter((entry) => isRecord(entry) && typeof entry.blindId === 'string')
+    : [];
+  return {
+    ...(input as unknown as RunState),
+    deck,
+    jokers: strings(input.jokers).filter(isJokerId),
+    usedExercises: strings(input.usedExercises).filter(hasExercise),
+    handLevels: isRecord(input.handLevels) ? (input.handLevels as RunState['handLevels']) : {},
+    history: history as RunState['history'],
+    round,
+    tutorial: parseTutorial(input.tutorial),
+    endReason: input.endReason === 'abandoned' ? 'abandoned' : undefined,
+  };
 }
 
 export function createLocalStorageRepository(storage?: StorageLike): SaveRepository {

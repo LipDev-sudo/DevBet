@@ -8,11 +8,12 @@ import { Notice } from './Notice';
 import { TutorialCoach } from './TutorialCoach';
 import { ChallengeScreen } from './screens/ChallengeScreen';
 import { EndScreen } from './screens/EndScreen';
-import { Lobby } from '../world/Lobby';
-import { ResultScreen } from './screens/ResultScreen';
+import { BlindScreen } from './screens/BlindScreen';
+import { ClearedScreen } from './screens/ClearedScreen';
+import { RoundScreen } from './screens/RoundScreen';
+import { ScoreScreen } from './screens/ScoreScreen';
 import { ShopScreen } from './screens/ShopScreen';
 import { StartScreen } from './screens/StartScreen';
-import { TableScreen } from './screens/TableScreen';
 
 export function PlayShell() {
   const { state } = useGame();
@@ -34,17 +35,20 @@ export function PlayShell() {
     case undefined:
       screen = <StartScreen />;
       break;
-    case 'map':
-      screen = <Lobby />;
+    case 'blind':
+      screen = <BlindScreen />;
       break;
-    case 'table':
-      screen = <TableScreen />;
+    case 'round':
+      screen = <RoundScreen />;
       break;
-    case 'challenge':
+    case 'coding':
       screen = <ChallengeScreen />;
       break;
-    case 'reward':
-      screen = <ResultScreen />;
+    case 'scored':
+      screen = <ScoreScreen />;
+      break;
+    case 'cleared':
+      screen = <ClearedScreen />;
       break;
     case 'shop':
       screen = <ShopScreen />;
@@ -61,7 +65,9 @@ export function PlayShell() {
       <main id="conteudo" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
         <TutorialCoach />
         {/* `key` reinicia a animação de entrada a cada mudança de etapa. */}
-        <div key={`${run?.status ?? 'start'}-${run?.layerIndex ?? 0}`}>{screen}</div>
+        <div key={`${run?.status ?? 'start'}-${run?.ante ?? 0}-${run?.blindIndex ?? 0}`}>
+          {screen}
+        </div>
         <AbandonRun />
       </main>
       <Notice />

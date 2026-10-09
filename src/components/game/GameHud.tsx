@@ -5,35 +5,10 @@ import { PlayingCard } from '@/components/ui/PlayingCard';
 import { ChipCount } from '@/components/ui/Chip';
 import { Brand } from '@/components/ui/Brand';
 import { Modal } from '@/components/ui/Modal';
-import { tableForLayer, tableLabel } from '@/content/tables';
+import { ANTES, currentBlind, JOKER_SLOTS } from '@/engine/blind';
 import { CARDS } from '@/engine/cards';
 import { xpProgress } from '@/engine/progression';
-import { START_LIVES } from '@/engine/run';
-import { STREAK_CAP, STREAK_STEP, streakMultiplier } from '@/engine/scoring';
 import { useGame } from './GameProvider';
-
-/** Um coração por vida real. Vazios só aparecem para as vidas perdidas do começo da run (até START_LIVES). */
-function Lives({ lives }: { lives: number }) {
-  const slots = Math.max(START_LIVES, lives);
-  return (
-    <span
-      key={lives}
-      className="bump inline-flex items-center gap-0.5"
-      role="img"
-      aria-label={`${lives} ${lives === 1 ? 'vida' : 'vidas'}`}
-    >
-      {Array.from({ length: slots }, (_, i) => (
-        <span
-          key={i}
-          aria-hidden="true"
-          className={`font-display text-lg ${i < lives ? 'text-crimson-hot' : 'text-ivory-dim/25'}`}
-        >
-          ♥&#xFE0E;
-        </span>
-      ))}
-    </span>
-  );
-}
 
 export function GameHud() {
   const { state } = useGame();
@@ -49,29 +24,22 @@ export function GameHud() {
         <div className="hidden items-center gap-4 sm:flex">
           <Brand />
           <span className="table-label hidden border-l border-white/10 pl-4 lg:inline">
-            {run.status === 'shop' ? 'Loja' : tableLabel(tableForLayer(run.layerIndex))}
+            {run.status === 'shop'
+              ? 'Loja'
+              : `Ante ${run.ante + 1}/${ANTES.length} · ${currentBlind(run).name}`}
           </span>
         </div>
         <dl className="flex flex-1 flex-wrap items-center justify-end gap-x-5 gap-y-1.5 sm:flex-none">
           <div className="flex items-center gap-2">
             <dt className="sr-only">Fichas</dt>
-            <dd key={run.chips} className="bump">
-              <ChipCount amount={run.chips} />
+            <dd key={run.money} className="bump">
+              <ChipCount amount={run.money} />
             </dd>
           </div>
           <div className="flex items-center gap-2">
-            <dt className="sr-only">Vidas</dt>
-            <dd data-tutorial="lives">
-              <Lives lives={run.lives} />
-            </dd>
-          </div>
-          <div
-            className="flex items-center gap-2"
-            title={`Sequência: cada vitória seguida soma ${STREAK_STEP.toFixed(2)} ao multiplicador da pontuação (até ×${streakMultiplier(STREAK_CAP).toFixed(2)}). Um Bust zera.`}
-          >
-            <dt className="table-label !tracking-[0.2em]">Sequência</dt>
-            <dd key={run.streak} className="bump font-display font-bold text-win tabular-nums">
-              ×{streakMultiplier(run.streak).toFixed(2)}
+            <dt className="table-label !tracking-[0.2em]">Jokers</dt>
+            <dd className="font-display font-bold text-ivory tabular-nums">
+              {run.jokers.length}/{JOKER_SLOTS}
             </dd>
           </div>
           <div
@@ -118,7 +86,7 @@ export function GameHud() {
           ))}
         </ul>
         <p className="mt-5 text-center text-xs text-ivory-dim">
-          A cada mesa, 5 cartas do baralho são sorteadas para sua mão.
+          A cada blind o baralho é embaralhado e você compra 8 cartas. Você joga de 1 a 5.
         </p>
       </Modal>
     </header>

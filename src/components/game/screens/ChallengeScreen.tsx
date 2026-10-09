@@ -9,15 +9,15 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { RichText } from '@/components/ui/RichText';
-import { getChallenge } from '@/content/challenges';
-import { tableForLayer } from '@/content/tables';
+import { getExercise } from '@/content/exercises';
+import { getTableByArea } from '@/content/tables';
 import { briefChallenge, reactToRun, restingMood, type DealerLine } from '@/engine/dealer';
 import { playSfx } from '@/lib/sfx';
 import { buildFeedback, TOP_LEVEL_ERROR_PREFIX, type Feedback } from '@/engine/feedback';
 import { isRealExecution, tutorialGate } from '@/engine/tutorial';
 import { hintBlockedReason, HINT_LABEL, hintCost, nextHintLevel } from '@/engine/hints';
-import { handCards, RISK_LEVELS } from '@/engine/run';
-import { FAIL_PENALTY, previewHand, SOLUTION_FACTOR } from '@/engine/scoring';
+import { ANTES, handLevel, playedCards } from '@/engine/blind';
+import { FAIL_PENALTY, previewPlay, SOLUTION_FACTOR } from '@/engine/handscore';
 import { TOPIC_LABEL } from '@/engine/types';
 import { createBrowserExecutor } from '@/runner/browser-executor';
 import { checkRunAllowed, DENIAL_MESSAGE } from '@/runner/guard';
@@ -96,8 +96,8 @@ function TestRow({
 export function ChallengeScreen() {
   const { state, dispatch } = useGame();
   const run = state.run;
-  const encounter = run?.encounter ?? null;
-  const challenge = encounter ? getChallenge(encounter.challengeId) : null;
+  const encounter = run?.round?.play ?? null;
+  const challenge = encounter ? getExercise(encounter.exerciseId) : null;
 
   const executor = useMemo(() => createBrowserExecutor(), []);
   // Começa a carregar o Python já ao abrir o desafio: a primeira execução não espera.
@@ -163,7 +163,7 @@ export function ChallengeScreen() {
     async (kind: 'run' | 'submit') => {
       const { code: current, encounter: enc, running: busy } = latest.current;
       if (!enc || busy) return;
-      const target = getChallenge(enc.challengeId);
+      const target = getExercise(enc.exerciseId);
 
       const denial = checkRunAllowed({
         kind,
@@ -198,8 +198,7 @@ export function ChallengeScreen() {
       const allPassed = result.status === 'ok' && result.tests.every((t) => t.passed);
       if (allPassed && kind === 'submit') {
         playSfx('correct');
-        dispatch({ type: 'draft', code: current });
-        dispatch({ type: 'resolve' });
+        dispatch({ type: 'submit', code: current });
         return;
       }
       const failures = enc.failedRuns + (allPassed ? 0 : 1);
@@ -223,9 +222,13 @@ export function ChallengeScreen() {
 
   if (!run || !encounter || !challenge) return null;
 
-  const hand = handCards(run);
-  const preview = previewHand(hand, challenge.concepts);
-  const table = tableForLayer(run.layerIndex);
+  const hand = playedCards(run);
+  const preview = previewPlay(
+    hand,
+    challenge.concepts,
+    handLevel(run, previewPlay(hand, []).rank.id),
+  );
+  const table = getTableByArea(ANTES[run.ante]?.areaId ?? 'fundamentos');
   const hintLevel = encounter.hintLevel;
   const nextHint = nextHintLevel(challenge, hintLevel);
   const cost = hintCost(challenge, hintLevel);
@@ -263,7 +266,8 @@ export function ChallengeScreen() {
         <div className="grid gap-4 p-4 pt-2 sm:p-5 sm:pt-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="min-w-0">
             <p className={`table-label ${isBoss ? '!text-crimson-hot' : ''}`}>
-              Desafio · {TOPIC_LABEL[challenge.topic]}
+              {challenge.id.startsWith('mini-') ? 'Mini-desafio' : 'Desafio'} ·{' '}
+              {TOPIC_LABEL[challenge.topic]}
             </p>
             <h1
               id="desafio-titulo"
@@ -286,7 +290,9 @@ export function ChallengeScreen() {
                   <li
                     key={id}
                     title={
-                      inHand ? 'Você tem esta carta na mão: efeito dobrado.' : 'Conceito do desafio'
+                      inHand
+                        ? 'Você jogou esta carta: efeito dobrado.'
+                        : 'Conceito do exercício (sem carta jogada)'
                     }
                     className={`rounded-full px-2.5 py-0.5 font-mono text-[0.7rem] ring-1 ${inHand ? 'text-gold-light ring-gold/60' : 'text-ivory-dim ring-white/15'}`}
                   >
@@ -306,28 +312,22 @@ export function ChallengeScreen() {
                 className="h-36 w-[7.2rem]"
               />
             </div>
-            <ul className="relative flex gap-1.5 lg:-mt-9" aria-label="Sua mão">
+            <ul className="relative flex gap-1.5 lg:-mt-9" aria-label="Cartas jogadas">
               {hand.map((card) => (
                 <li key={card.uid}>
                   <PlayingCard
                     cardId={card.cardId}
                     upgrade={card.upgrade}
                     size="xs"
-                    boosted={preview.lines.find((l) => l.uid === card.uid)?.boosted}
+                    boosted={challenge.concepts.includes(card.cardId)}
                   />
                 </li>
               ))}
             </ul>
             <p className="mt-2 text-xs text-ivory-dim">
-              <span className="font-bold text-ivory">{preview.rank.name}</span> · mult ×
-              {preview.mult.toFixed(2)} · meta {challenge.target} pts
-              {encounter.risk !== 'safe' && (
-                <>
-                  {' '}
-                  · {RISK_LEVELS[encounter.risk].label} · {RISK_LEVELS[encounter.risk].wager} fichas
-                  em jogo
-                </>
-              )}
+              <span className="font-bold text-ivory">{preview.rank.name}</span> · {preview.chips}{' '}
+              fichas × {preview.mult} mult
+              <span className="sr-only"> (mínimo, sem jokers)</span>
             </p>
           </div>
         </div>
@@ -557,8 +557,8 @@ export function ChallengeScreen() {
         title="Ver a solução explicada?"
       >
         <p className="text-sm leading-relaxed text-ivory/90">
-          Custo: {cost?.label}. A pontuação final da mesa cai para{' '}
-          {Math.round(SOLUTION_FACTOR * 100)}% do que seria, e isso pode causar um Bust.
+          Custo: {cost?.label}. A pontuação desta mão cai para {Math.round(SOLUTION_FACTOR * 100)}%
+          do que seria.
         </p>
         <div className="mt-5 flex justify-end gap-3">
           <Button
@@ -585,15 +585,11 @@ export function ChallengeScreen() {
       <Modal
         open={confirmForfeit}
         onClose={() => setConfirmForfeit(false)}
-        title="Desistir deste desafio?"
+        title="Desistir desta mão?"
       >
         <p className="text-sm leading-relaxed text-ivory/90">
-          Desistir conta como Bust: você perde 1 vida
-          {RISK_LEVELS[encounter.risk].wager > 0
-            ? `, a aposta de ${RISK_LEVELS[encounter.risk].wager} fichas`
-            : ''}{' '}
-          e a sequência de vitórias, sem pontuar nem ganhar XP.
-          {isBoss && ' No boss, você volta à mesa para uma revanche.'}
+          A mão é gasta e vale 0 pontos: você perde uma das suas mãos desta blind, e as cartas
+          jogadas vão para o descarte.
         </p>
         <div className="mt-5 flex justify-end gap-3">
           <Button variant="ghost" size="sm" data-autofocus onClick={() => setConfirmForfeit(false)}>

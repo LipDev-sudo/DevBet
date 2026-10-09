@@ -3,7 +3,7 @@ import { CARDS, cardChips, cardMult, getCard, LEGACY_CARD_IDS } from './cards';
 import { COMBOS, findActiveCombos, nearCombos } from './combos';
 import { evaluateHand } from './hands';
 import { createRng, shuffle, weightedSample } from './rng';
-import { computeScore, precisionFactor, streakMultiplier } from './scoring';
+import { precisionFactor, previewPlay, RANK_BASE, scoreHand } from './handscore';
 import type { CardId, DeckCard } from './types';
 
 const deck = (...ids: CardId[]): DeckCard[] =>
@@ -147,60 +147,91 @@ describe('mãos', () => {
   });
 });
 
-describe('pontuação', () => {
-  it('multiplicador de combo cresce com a sequência', () => {
-    expect(streakMultiplier(0)).toBe(1);
-    expect(streakMultiplier(2)).toBe(1.3);
-    expect(streakMultiplier(99)).toBe(streakMultiplier(6));
+describe('pontuação da mão', () => {
+  const base = (played: DeckCard[], extra: Partial<Parameters<typeof scoreHand>[0]> = {}) => ({
+    played,
+    concepts: [] as CardId[],
+    jokers: [] as string[],
+    code: 'return 1',
+    firstTry: true,
+    failedSubmissions: 0,
+    hintsUsed: 0,
+    solutionViewed: false,
+    ...extra,
   });
 
   it('precisão penaliza erros e dicas, com piso', () => {
     expect(precisionFactor(0, 0, false)).toBe(1);
-    expect(precisionFactor(1, 1, false)).toBe(0.82);
+    expect(precisionFactor(1, 1, false)).toBe(0.8);
     expect(precisionFactor(20, 20, false)).toBe(0.4);
     expect(precisionFactor(0, 0, true)).toBe(0.4);
   });
 
-  it('dobra o efeito de cartas cujo conceito o desafio usa', () => {
-    const hand = deck('condition');
-    const logic = computeScore({
-      basePoints: 100,
-      concepts: ['condition'],
-      hand,
-      streak: 0,
-      failedSubmissions: 0,
-      voluntaryHints: 0,
-      solutionViewed: false,
-    });
-    const loops = computeScore({ ...baseInput(hand), concepts: ['for'] });
-    expect(logic.cards[0]?.boosted).toBe(true);
-    expect(logic.total).toBeGreaterThan(loops.total);
+  it('a mão certa já vale antes das cartas, e cada carta soma fichas e multiplicador', () => {
+    const score = scoreHand(base(deck('for', 'while')));
+    expect(score.rank.id).toBe('pair');
+    expect(score.steps[0]).toMatchObject({ kind: 'rank', chips: RANK_BASE.pair.chips });
+    const cards = score.steps.filter((step) => step.kind === 'card');
+    expect(cards).toHaveLength(2);
+    expect(score.chips).toBe(RANK_BASE.pair.chips + cards.reduce((sum, c) => sum + c.addChips, 0));
+    expect(score.total).toBe(Math.round(score.chips * score.mult));
   });
 
-  it('calcula (base + fichas) × mult × streak × precisão', () => {
-    const hand = deck('variable', 'unit-test');
-    const out = computeScore({ ...baseInput(hand), concepts: ['list'], streak: 2 });
-    // variable: 10 chips/+0.10; unit-test: 18 chips/+0.30; nenhum conceito usado, sem par, sem combo.
-    expect(out.cardChips).toBe(28);
-    expect(out.mult).toBe(1.4);
-    expect(out.total).toBe(Math.round((100 + 28) * 1.4 * 1.3));
+  it('dobra o efeito de cartas cujo conceito o exercício usa', () => {
+    const plain = scoreHand(base(deck('condition')));
+    const boosted = scoreHand(base(deck('condition'), { concepts: ['condition'] }));
+    expect(boosted.steps[1]?.addChips).toBe((plain.steps[1]?.addChips ?? 0) * 2);
+    expect(boosted.total).toBeGreaterThan(plain.total);
   });
 
-  it('melhorias entram na conta', () => {
-    const plain = computeScore(baseInput(deck('condition')));
-    const upgraded = computeScore(baseInput([{ uid: 'x', cardId: 'condition', upgrade: 2 }]));
+  it('combos entram quando as duas cartas são jogadas', () => {
+    const score = scoreHand(base(deck('list', 'for')));
+    expect(score.combos.map((c) => c.combo.id)).toContain('iterator');
+    expect(score.steps.some((step) => step.kind === 'combo')).toBe(true);
+  });
+
+  it('jokers disparam na ordem e só quando o código usa o idioma', () => {
+    const withIdiom = scoreHand(
+      base(deck('for'), { jokers: ['comprehension', 'fstring'], code: 'return [n for n in x]' }),
+    );
+    const jokers = withIdiom.steps.filter((step) => step.kind === 'joker');
+    expect(jokers.map((step) => step.jokerId)).toEqual(['comprehension']);
+    const without = scoreHand(base(deck('for'), { jokers: ['comprehension'], code: 'return 1' }));
+    expect(without.steps.some((step) => step.kind === 'joker')).toBe(false);
+    expect(withIdiom.total).toBeGreaterThan(without.total);
+  });
+
+  it('multiplicadores de joker multiplicam o placar acumulado', () => {
+    const one = scoreHand(base(deck('for'), { jokers: [] }));
+    const x = scoreHand(base(deck('for'), { jokers: ['clean-hand'] }));
+    expect(x.mult).toBeCloseTo(one.mult * 1.5, 1);
+  });
+
+  it('precisão e solução reduzem o total; carta anulada não pontua', () => {
+    const clean = scoreHand(base(deck('for', 'list')));
+    const messy = scoreHand(base(deck('for', 'list'), { failedSubmissions: 2 }));
+    expect(messy.total).toBeLessThan(clean.total);
+    expect(messy.steps.at(-1)).toMatchObject({ kind: 'precision', xMult: 0.8 });
+    const peeked = scoreHand(base(deck('for', 'list'), { solutionViewed: true }));
+    expect(peeked.precision).toBe(0.4);
+    const debuffed = scoreHand(base(deck('for', 'list'), { debuffed: (c) => c.cardId === 'for' }));
+    expect(debuffed.steps.find((step) => step.label === 'FOR')?.debuffed).toBe(true);
+    expect(debuffed.total).toBeLessThan(clean.total);
+  });
+
+  it('a prévia mínima bate com o placar de uma mão sem jokers nem erros', () => {
+    const hand = deck('boolean', 'condition', 'for');
+    const preview = previewPlay(hand, ['boolean']);
+    const score = scoreHand(base(hand, { concepts: ['boolean'] }));
+    expect(preview.chips).toBe(score.chips);
+    expect(preview.mult).toBe(score.mult);
+  });
+
+  it('melhorias de carta e de mão entram na conta', () => {
+    const plain = scoreHand(base(deck('condition')));
+    const upgraded = scoreHand(base([{ uid: 'x', cardId: 'condition', upgrade: 2 }]));
     expect(upgraded.total).toBeGreaterThan(plain.total);
+    const leveled = scoreHand(base(deck('condition'), { handLevel: 3 }));
+    expect(leveled.total).toBeGreaterThan(plain.total);
   });
 });
-
-function baseInput(hand: DeckCard[]) {
-  return {
-    basePoints: 100,
-    concepts: ['variable'] as CardId[],
-    hand,
-    streak: 0,
-    failedSubmissions: 0,
-    voluntaryHints: 0,
-    solutionViewed: false,
-  };
-}

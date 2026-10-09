@@ -1,13 +1,16 @@
 import { cardEffect, getCard, RARITY_LABEL } from '@/engine/cards';
+import { CARD_MULT_SCALE } from '@/engine/handscore';
 import { CATEGORY_LABEL, type CardId, type CategoryId } from '@/engine/types';
 
-export type CardSize = 'xs' | 'sm' | 'md' | 'lg';
+export type CardSize = 'xs' | 'sm' | 'md' | 'lg' | 'fluid';
 
 const SIZE_CLASS: Record<CardSize, string> = {
   xs: 'w-[3.9rem] sm:w-[4.4rem]',
   sm: 'w-28',
   md: 'w-32',
   lg: 'w-48',
+  /** Preenche a coluna (até 6rem) no celular e vira `sm` a partir de sm. */
+  fluid: 'w-full max-w-24 sm:w-28',
 };
 
 /** Marca da categoria: forma simples e funcional, para reconhecer o naipe conceitual de relance. */
@@ -40,6 +43,9 @@ function CategoryMark({ category }: { category: CategoryId }) {
   );
 }
 
+/** Multiplicador como o placar o aplica (0.2 de efeito vale +0.8 de mult), sem zeros sobrando. */
+export const fmtMult = (mult: number) => String(Math.round(mult * CARD_MULT_SCALE * 10) / 10);
+
 const nameSize = (name: string) => (name.length <= 5 ? 's' : name.length <= 8 ? 'm' : 'l');
 
 export interface PlayingCardProps {
@@ -50,6 +56,8 @@ export interface PlayingCardProps {
   /** O desafio atual usa o conceito desta carta: o efeito mostrado já é o dobrado. */
   boosted?: boolean;
   faceDown?: boolean;
+  /** Anulada pela regra do boss: não pontua. */
+  debuffed?: boolean;
   dealDelayMs?: number;
   onClick?: () => void;
   className?: string;
@@ -62,6 +70,7 @@ export function PlayingCard({
   selected = false,
   boosted = false,
   faceDown = false,
+  debuffed = false,
   dealDelayMs,
   onClick,
   className = '',
@@ -87,8 +96,9 @@ export function PlayingCard({
       data-selected={selected}
       data-interactive={interactive}
       data-boosted={boosted}
+      data-debuffed={debuffed}
       aria-pressed={interactive ? selected : undefined}
-      aria-label={`${card.name}, ${CATEGORY_LABEL[card.category]}, carta ${RARITY_LABEL[card.rarity].toLowerCase()}. +${effect.chips} fichas e +${effect.mult.toFixed(2)} de multiplicador${boosted ? ', dobrado porque o desafio usa este conceito' : '; dobra se o desafio usar este conceito'}`}
+      aria-label={`${card.name}, ${CATEGORY_LABEL[card.category]}, carta ${RARITY_LABEL[card.rarity].toLowerCase()}. +${effect.chips} fichas e +${fmtMult(effect.mult)} de multiplicador${debuffed ? '. Anulada pelo boss: não pontua' : ''}${boosted ? ', dobrado porque o desafio usa este conceito' : '; dobra se o desafio usar este conceito'}`}
       className={`playing-card text-left ${base}`}
       style={style}
     >
@@ -115,7 +125,7 @@ export function PlayingCard({
 
         <div className="pc-effect">
           <div className={boosted ? 'text-gold-light' : 'text-ivory'}>
-            +{effect.mult.toFixed(2)} MULT{boosted ? ' ×2' : ''}
+            +{fmtMult(effect.mult)} MULT{boosted ? ' ×2' : ''}
           </div>
           <div className={boosted ? 'text-gold-light' : 'text-ivory-dim'}>
             +{effect.chips} FICHAS

@@ -8,12 +8,21 @@ import { TopBar } from '@/components/ui/TopBar';
 import { Wordmark } from '@/components/ui/Wordmark';
 
 const PILLARS = [
-  { name: 'Cards', text: 'Conceitos de Python viram cartas: CONDITION, FOR, LIST, RECURSION.' },
-  { name: 'Code', text: 'Cada mesa é um desafio. Você escreve Python e os testes decidem.' },
-  { name: 'Combos', text: 'Cartas certas juntas somam ao multiplicador: LIST + FOR = ITERATOR.' },
   {
-    name: 'Rewards',
-    text: 'Fichas compram cartas e melhorias na loja; o XP desbloqueia novas cartas.',
+    name: 'Cards',
+    text: 'Conceitos de Python viram cartas. Escolha até 5 de uma mão de 8 e forme PAIR, FLUSH, STRAIGHT.',
+  },
+  {
+    name: 'Code',
+    text: 'Cada mão jogada pede um exercício de Python. Código certo pontua: fichas × multiplicador.',
+  },
+  {
+    name: 'Jokers',
+    text: 'Jokers são idiomas de Python (comprehension, f-string, ternário…) e só pontuam se o seu código os usa.',
+  },
+  {
+    name: 'Blinds',
+    text: 'Bata a meta de cada blind com 4 mãos e 3 descartes. Bosses mudam as regras. Entre elas, a loja.',
   },
 ];
 

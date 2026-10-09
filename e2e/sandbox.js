@@ -1,114 +1,84 @@
-// Regressão da Etapa 6 no navegador real: recurso bloqueado, ponto duplo, código > 4000 caracteres.
-const { launch, BASE } = require('./lib.cjs');
+// Sandbox e feedback no navegador real: recurso bloqueado, import bloqueado, sintaxe, nome inexistente
+// e código acima de 4000 caracteres.
+const f = require('./flow.cjs');
 const log = console.log;
-const errors = [];
 const problems = [];
 const check = (ok, msg) => {
   log(`${ok ? 'PASS' : 'FAIL'} ${msg}`);
   if (!ok) problems.push(msg);
 };
-const setCode = async (page, code) => {
-  await page.waitForFunction(() => window.monaco && window.monaco.editor.getEditors().length > 0);
-  await page.waitForTimeout(1500);
-  await page.evaluate((c) => window.monaco.editor.getEditors()[0].setValue(c), code);
-  await page.waitForTimeout(300);
-};
 const body = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
 
 (async () => {
-  const browser = await launch();
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  await ctx.addInitScript(() => {
-    if (!localStorage.getItem('devbet:profile:v1'))
-      localStorage.setItem(
-        'devbet:profile:v1',
-        JSON.stringify({
-          version: 1,
-          xp: 0,
-          runsPlayed: 1,
-          runsWon: 0,
-          bestRunScore: 0,
-          solved: {},
-          seenCards: [],
-          tutorialCompleted: true,
-        }),
-      );
-  });
-  const page = await ctx.newPage();
-  page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message.slice(0, 160)));
-  page.on(
-    'console',
-    (m) =>
-      ['error', 'warning'].includes(m.type()) &&
-      errors.push(m.type() + ' ' + m.text().slice(0, 160)),
-  );
-  await page.goto(BASE + '/play', { waitUntil: 'load' });
-  await page.getByText('Sentar à mesa').click();
-  await page.waitForTimeout(600);
-  await page.locator('ol button').filter({ hasText: 'Meta' }).first().click();
-  await page.getByRole('button', { name: 'Começar desafio' }).click();
-  await page.waitForTimeout(1200);
-
-  const exec = async (code, wait = 3500) => {
-    await setCode(page, code);
+  const browser = await f.launch();
+  const { page, errors } = await f.open(browser);
+  await f.startRun(page);
+  await f.startBlind(page);
+  await f.playCards(page, 2);
+  const title = await f.exerciseTitle(page);
+  const header = (f.solutionFor(title).match(/^def .*:/m) || ['def x():'])[0];
+  const run = async (code, wait = 3500) => {
+    await f.setCode(page, code);
     await page.getByRole('button', { name: 'Executar' }).click();
     await page.waitForTimeout(wait);
     return body(page);
   };
 
-  // A) recurso bloqueado: mensagem própria, não "variável não definida"
-  let t = await exec(
-    "def calcular_total(preco, quantidade, desconto):\n    open('x')\n    return 0",
-  );
-  check(/Recurso indisponível/.test(t), 'A: open() → "Recurso indisponível"');
+  let t = await run(`${header}\n    open('x')\n    return 0`);
+  check(/Recurso indisponível/.test(t), 'open() → "Recurso indisponível"');
   check(
     !/não foi definid/i.test(t.split('Recurso indisponível')[1]?.slice(0, 300) || ''),
-    'A: sem conselho de "variável não definida"',
+    'Sem conselho de "variável não definida"',
   );
-  t = await exec('def calcular_total(preco, quantidade, desconto):\n    return eval("1")');
-  check(/Recurso indisponível/.test(t), 'A: eval() → "Recurso indisponível"');
-  t = await exec('def calcular_total(preco, quantidade, desconto):\n    return nome_inexistente');
+  t = await run(`${header}\n    return eval("1")`);
+  check(/Recurso indisponível/.test(t), 'eval() → "Recurso indisponível"');
+  t = await run(`${header}\n    return nome_inexistente`);
   check(
     !/Recurso indisponível/.test(t) && /nome_inexistente/.test(t),
-    'A: nome realmente inexistente continua como NameError comum',
+    'Nome realmente inexistente continua NameError comum',
   );
-
-  // B) sem ponto duplo
-  t = await exec('def calcular_total(:\n    pass');
+  t = await run(`import os\n${header}\n    return 1`);
+  check(/Módulo indisponível|não está liberado/.test(t), 'import os → módulo não liberado');
+  t = await run('def x(:\n    pass');
+  check(/sintaxe/i.test(t), 'Erro de sintaxe é explicado');
   check(
     !/\.\./.test(t.replace(/\.\.\./g, '')),
-    'B: nenhum ".." nas mensagens de erro de carregamento',
+    'Nenhum ".." nas mensagens de erro de carregamento',
   );
 
-  // C) > 4000 caracteres: botões indisponíveis com explicação
-  await setCode(page, 'x = 1\n' + '# ' + 'a'.repeat(4100));
+  // > 4000 caracteres: botões indisponíveis com explicação
+  await f.setCode(page, 'x = 1\n# ' + 'a'.repeat(4100));
   await page.waitForTimeout(500);
   const alertText = await page.locator('[role=alert]').allInnerTexts();
   check(
     alertText.some((x) => /4000/.test(x)),
-    `C: aviso role=alert explica o limite (${alertText.join('|').slice(0, 80)})`,
+    'O aviso (role=alert) explica o limite de 4000',
   );
   const bar = page.locator('.wood.sticky');
+  const off = async (name) => {
+    const b = bar.getByRole('button', { name });
+    return (await b.getAttribute('aria-disabled')) === 'true' || (await b.isDisabled());
+  };
+  check(await off('Executar'), 'Executar indisponível');
+  check(await off('Entregar'), 'Entregar indisponível');
   check(
-    (await bar.getByRole('button', { name: 'Executar' }).getAttribute('aria-disabled')) ===
-      'true' || (await bar.getByRole('button', { name: 'Executar' }).isDisabled()),
-    'C: Executar indisponível',
+    !(await bar.getByRole('button', { name: 'Desistir' }).isDisabled()),
+    'Desistir continua disponível',
   );
-  check(
-    (await bar.getByRole('button', { name: 'Entregar' }).getAttribute('aria-disabled')) ===
-      'true' || (await bar.getByRole('button', { name: 'Entregar' }).isDisabled()),
-    'C: Entregar indisponível',
-  );
-  await setCode(page, 'x = 1');
+  await f.setCode(page, 'x = 1');
   await page.waitForTimeout(400);
   check(
     (await page.locator('[role=alert]').filter({ hasText: '4000' }).count()) === 0,
-    'C: aviso some ao voltar ao limite',
+    'O aviso some ao voltar ao limite',
   );
 
   await browser.close();
   log('ERRORS', JSON.stringify(errors));
-  log(problems.length ? 'RESULT: FAIL ' + JSON.stringify(problems) : 'RESULT: ALL PASS');
+  log(
+    problems.length || errors.length
+      ? 'RESULT: FAIL ' + JSON.stringify(problems)
+      : 'RESULT: ALL PASS',
+  );
 })().catch((e) => {
   console.error(e);
   process.exit(1);

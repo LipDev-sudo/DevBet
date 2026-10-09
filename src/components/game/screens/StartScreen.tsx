@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { xpProgress } from '@/engine/progression';
-import { STARTER_PACKS, TUTORIAL_PACK_ID } from '@/engine/run';
+import { STARTER_PACKS, TUTORIAL_PACK_ID } from '@/engine/blind';
 import { useGame } from '../GameProvider';
 
 export function StartScreen() {
@@ -57,7 +57,7 @@ export function StartScreen() {
                   </span>
                 )}
                 <span className="mt-4 flex justify-center">
-                  {pack.cards.map((id, index) => (
+                  {pack.cards.slice(0, 7).map((id, index) => (
                     <span
                       key={id}
                       className="-mx-2"

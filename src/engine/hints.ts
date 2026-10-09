@@ -1,5 +1,5 @@
 import type { Challenge } from './challenge';
-import { FAILURES_FOR_SOLUTION, HINT_PENALTY, SOLUTION_FACTOR } from './scoring';
+import { FAILURES_FOR_SOLUTION, HINT_PENALTY, SOLUTION_FACTOR } from './handscore';
 
 export type HintLevel = 0 | 1 | 2 | 3 | 4 | 5;
 
