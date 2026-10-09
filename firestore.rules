@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Placar do DEVBet. Qualquer pessoa lê o ranking; só o próprio jogador logado grava o próprio registro,
-// com campos e limites fixos, e só para um resultado MELHOR que o anterior. Só o administrador apaga.
+// com campos e limites fixos. O registro acompanha a run atual (pode subir ou descer a cada nova run). Só o administrador apaga.
 service cloud.firestore {
   match /databases/{database}/documents {
     function validEntry(d) {
@@ -36,8 +36,7 @@ service cloud.firestore {
       allow create: if isOwner(uid) && !isBanned(uid) && validEntry(request.resource.data);
       allow update: if isOwner(uid)
         && !isBanned(uid)
-        && validEntry(request.resource.data)
-        && request.resource.data.score > resource.data.score;
+        && validEntry(request.resource.data);
       allow delete: if isAdmin();
     }
 

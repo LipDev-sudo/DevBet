@@ -38,7 +38,7 @@ export function ScoreSubmit({ run }: { run: RunState }) {
         try {
           localStorage.setItem(sentKey(runId), String(entry.score));
         } catch {
-          /* sem storage: pode reenviar, mas o banco só aceita um resultado melhor */
+          /* sem storage: pode reenviar sem problema */
         }
         if (!cancelled) setStatus(saved ? 'sent' : 'kept');
       } catch {
@@ -77,8 +77,7 @@ export function ScoreSubmit({ run }: { run: RunState }) {
         <p role="status" className="mt-2 text-sm text-ivory">
           {status === 'sending' && 'Enviando sua pontuação…'}
           {status === 'sent' && `Pontuação enviada: ${run.score} pontos como ${nickname}.`}
-          {status === 'kept' &&
-            'Seu resultado já está no placar, e o melhor de todos continua valendo. Boa tentativa!'}
+          {status === 'kept' && 'Seu resultado já estava no placar. Boa tentativa!'}
           {status === 'error' &&
             'Não foi possível enviar agora. Confira a conexão e tente outra run.'}
           {status === 'idle' && alreadySent(run.id) && 'Esta run já foi enviada ao placar.'}

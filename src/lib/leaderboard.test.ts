@@ -98,10 +98,10 @@ describe('entrada do placar', () => {
     ).toBe(MAX_SCORE);
   });
 
-  it('só um resultado melhor substitui o anterior', () => {
+  it('a run atual substitui o registro, mesmo menor, mas não regrava o mesmo valor', () => {
     expect(shouldReplace(null, { score: 1 })).toBe(true);
     expect(shouldReplace({ score: 100 }, { score: 101 })).toBe(true);
     expect(shouldReplace({ score: 100 }, { score: 100 })).toBe(false);
-    expect(shouldReplace({ score: 100 }, { score: 50 })).toBe(false);
+    expect(shouldReplace({ score: 100 }, { score: 50 })).toBe(true);
   });
 });

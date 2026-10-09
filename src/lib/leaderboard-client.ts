@@ -166,7 +166,7 @@ export async function deleteEntry(uid: string, ban: boolean): Promise<void> {
   await deleteDoc(doc(db, COLLECTION, uid));
 }
 
-/** Grava a pontuação do jogador logado, só se for melhor que a anterior. `true` quando gravou. */
+/** Grava a pontuação do jogador logado, substituindo a anterior se mudou (o placar mostra a run atual). `true` quando gravou. */
 export async function submitScore(uid: string, entry: LeaderboardEntry): Promise<boolean> {
   const { db } = await getFirebase();
   const { doc, runTransaction, serverTimestamp } = await import('firebase/firestore');

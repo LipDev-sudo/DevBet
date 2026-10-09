@@ -77,7 +77,7 @@ export function entryFromRun(run: RunState, nickname: string): LeaderboardEntry 
   };
 }
 
-/** Só um resultado melhor substitui o anterior (um registro por jogador). */
+/** O registro do jogador acompanha a run atual: qualquer pontuação diferente da gravada o substitui (um registro por jogador). */
 export function shouldReplace(current: { score: number } | null, next: { score: number }): boolean {
-  return current === null || next.score > current.score;
+  return current === null || next.score !== current.score;
 }
