@@ -20,7 +20,7 @@ function describe(error: unknown): string {
     return 'O login por e-mail e senha não está ligado no Firebase (Authentication → Sign-in method).';
   }
   if (code === 'permission-denied') {
-    return 'Sem permissão: este usuário não é o administrador das regras do Firestore.';
+    return 'Sem permissão. Compare o UID mostrado acima com o que está em isAdmin() nas regras do Firestore (e confirme que as regras foram publicadas).';
   }
   return `Algo deu errado. (${code || 'erro'})`;
 }
@@ -121,9 +121,12 @@ export function AdminPanel() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ivory-dim">
-          Moderação: {entries ? `${entries.length} registros` : 'carregando…'}
-        </p>
+        <div className="min-w-0 text-sm text-ivory-dim">
+          <p>Moderação: {entries ? `${entries.length} registros` : 'carregando…'}</p>
+          <p className="mt-1 text-xs break-all">
+            Seu UID: <span className="font-mono text-ivory">{user?.uid}</span>
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button size="sm" variant="ghost" onClick={load}>
             Atualizar
