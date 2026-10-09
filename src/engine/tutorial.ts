@@ -35,7 +35,7 @@ function welcome(): Lesson {
     title: 'Bem-vindo à casa',
     text: 'Aqui você joga mãos de cartas de conceitos de Python, como no pôquer. Cada mão vem com uma pergunta rápida e vira pontos.',
     detail:
-      'Esta é uma run de verdade, no estilo dos jogos de cartas roguelike: blinds com meta, mãos e descartes limitados, jokers que dão bônus a mãos bem montadas. Na primeira run você joga com o Pacote Funções.',
+      'Esta é uma run de verdade, no estilo dos jogos de cartas roguelike: blinds com meta, mãos e descartes limitados, jokers que dão bônus a mãos bem montadas. Com o guia ligado você joga com o Pacote Funções. Se preferir, pode pular o tutorial.',
     target: `${T('packs')}, ${T('start-run')}`,
     ack: false,
     action: 'Escolha um baralho e sente à mesa',

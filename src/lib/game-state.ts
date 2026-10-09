@@ -30,7 +30,8 @@ export interface GameState {
 
 export type GameAction =
   | { type: 'hydrate'; profile: Profile; run: RunState | null }
-  | { type: 'new-run'; packId: string; seed: number }
+  | { type: 'new-run'; packId: string; seed: number; guided?: boolean }
+  | { type: 'skip-tutorial' }
   | { type: 'abandon-run' }
   | { type: 'dismiss-run' }
   | { type: 'start-blind' }
@@ -98,6 +99,7 @@ function tutorialEventFor(action: GameAction): TutorialEvent | null {
 const ALLOWED_AFTER_END = new Set<GameAction['type']>([
   'hydrate',
   'new-run',
+  'skip-tutorial',
   'dismiss-run',
   'clear-notice',
   'reset',
@@ -128,13 +130,22 @@ function reduceGame(state: GameState, action: GameAction): GameState {
     case 'hydrate':
       return { ...state, hydrated: true, profile: action.profile, run: action.run };
     case 'new-run': {
-      // Na primeira run o baralho é o da Tutorial Run; depois, vale a escolha do jogador.
-      const packId = state.profile.tutorialCompleted ? action.packId : TUTORIAL_PACK_ID;
-      const created = createRun(packId, action.seed, state.profile);
+      // O guia do Dealer é opcional: com ele o baralho é o da Tutorial Run; sem ele, vale a escolha do jogador
+      // (e o guia não volta a aparecer).
+      const guided = action.guided ?? !state.profile.tutorialCompleted;
+      const packId = guided ? TUTORIAL_PACK_ID : action.packId;
+      const profile = guided ? state.profile : { ...state.profile, tutorialCompleted: true };
+      const created = createRun(packId, action.seed, profile, guided);
       return created.ok
-        ? { ...state, run: created.state, notice: null }
+        ? { ...state, profile, run: created.state, notice: null }
         : applyResult(state, created);
     }
+    case 'skip-tutorial':
+      return {
+        ...state,
+        profile: { ...state.profile, tutorialCompleted: true },
+        run: run ? { ...run, tutorial: null } : run,
+      };
     case 'abandon-run': {
       if (!run || FINAL.has(run.status)) return state;
       // A run abandonada vira uma run encerrada: o resultado aparece na tela final e sobrevive ao reload.

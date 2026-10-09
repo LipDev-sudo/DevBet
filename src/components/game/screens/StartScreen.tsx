@@ -19,7 +19,9 @@ export function StartScreen() {
   const [packId, setPackId] = useState<string>(
     profile.tutorialCompleted ? (STARTER_PACKS[0]?.id ?? 'logica') : TUTORIAL_PACK_ID,
   );
-  const guided = !profile.tutorialCompleted;
+  // O guia do Dealer é opcional: começa ligado só para quem nunca jogou.
+  const [guidedChoice, setGuided] = useState(true);
+  const guided = guidedChoice && !profile.tutorialCompleted;
   const xp = xpProgress(profile.xp);
 
   return (
@@ -66,7 +68,7 @@ export function StartScreen() {
                 <span className="mt-1 block min-h-10 text-sm text-ivory-dim">{pack.tagline}</span>
                 {locked && (
                   <span className="mt-2 block text-xs text-ivory-dim">
-                    Disponível depois da primeira run.
+                    Desligue o guia do Dealer para escolher este pacote.
                   </span>
                 )}
                 <span className="mt-4 flex justify-center overflow-hidden py-2">
@@ -91,12 +93,31 @@ export function StartScreen() {
           data-tutorial="start-run"
           className="!px-12 !py-4 !text-base"
           onClick={() =>
-            dispatch({ type: 'new-run', packId, seed: Math.floor(Math.random() * 2 ** 31) })
+            dispatch({
+              type: 'new-run',
+              packId,
+              guided,
+              seed: Math.floor(Math.random() * 2 ** 31),
+            })
           }
         >
           <PixelIcon name="game-controller" />
           Sentar à mesa
         </Button>
+        {!profile.tutorialCompleted && (
+          <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm text-ivory">
+            <input
+              type="checkbox"
+              checked={guided}
+              onChange={(event) => {
+                setGuided(event.target.checked);
+                if (event.target.checked) setPackId(TUTORIAL_PACK_ID);
+              }}
+              className="size-4"
+            />
+            Jogar com o guia do Dealer (tutorial)
+          </label>
+        )}
         <Link
           href="/colecao"
           className="table-label inline-flex min-h-10 items-center text-ivory-dim hover:text-ivory"

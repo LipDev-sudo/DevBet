@@ -12,6 +12,15 @@ import { useGame } from './GameProvider';
  * da lição; quem avança o tutorial são as ações de verdade (escolher, executar, entregar, comprar…).
  * Não há botão "próximo": só as lições informativas têm "Entendi".
  */
+function SkipButton() {
+  const { dispatch } = useGame();
+  return (
+    <Button size="sm" variant="ghost" onClick={() => dispatch({ type: 'skip-tutorial' })}>
+      Pular tutorial
+    </Button>
+  );
+}
+
 export function TutorialCoach() {
   const { state, dispatch } = useGame();
   const lesson = currentLesson(state.run, state.profile.tutorialCompleted);
@@ -74,7 +83,7 @@ export function TutorialCoach() {
           <p className="mt-1.5 text-sm leading-relaxed text-ivory-dim">{lesson.detail}</p>
         )}
         {lesson.ack ? (
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
             <Button
               size="sm"
               variant="ghost"
@@ -87,14 +96,18 @@ export function TutorialCoach() {
             >
               Entendi
             </Button>
+            <SkipButton />
           </div>
         ) : (
-          lesson.action && (
-            <p className="mt-2 flex items-center gap-2 text-xs font-semibold tracking-wide text-ivory uppercase">
-              <span aria-hidden="true" className="tutorial-dot" />
-              {lesson.action}
-            </p>
-          )
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+            {lesson.action && (
+              <p className="flex items-center gap-2 text-xs font-semibold tracking-wide text-ivory uppercase">
+                <span aria-hidden="true" className="tutorial-dot" />
+                {lesson.action}
+              </p>
+            )}
+            <SkipButton />
+          </div>
         )}
       </div>
     </section>

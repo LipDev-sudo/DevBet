@@ -377,7 +377,12 @@ export function handLevel(state: RunState, rank: HandRankId): number {
 
 /* ----------------------------------------------------------------- criação */
 
-export function createRun(packId: string, seed: number, profile: Profile): Result<RunState> {
+export function createRun(
+  packId: string,
+  seed: number,
+  profile: Profile,
+  guided: boolean = !profile.tutorialCompleted,
+): Result<RunState> {
   const pack = STARTER_PACKS.find((p) => p.id === packId);
   if (!pack) return fail('Pacote inicial desconhecido.');
   const deck: DeckCard[] = [];
@@ -404,7 +409,7 @@ export function createRun(packId: string, seed: number, profile: Profile): Resul
     xpEarned: 0,
     round: null,
     shop: null,
-    tutorial: profile.tutorialCompleted ? null : initialTutorial(),
+    tutorial: guided ? initialTutorial() : null,
     history: [],
   });
 }

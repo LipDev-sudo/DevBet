@@ -36,6 +36,34 @@ describe('reducer do jogo', () => {
     expect(run(started()).tutorial).toBeNull();
   });
 
+  it('o tutorial é opcional: dá para começar sem o guia e escolher o baralho', () => {
+    const fresh = createProfile();
+    const hydrated = gameReducer(initialGameState(fresh), {
+      type: 'hydrate',
+      profile: fresh,
+      run: null,
+    });
+    const free = gameReducer(hydrated, {
+      type: 'new-run',
+      packId: 'dados',
+      seed: 11,
+      guided: false,
+    });
+    expect(run(free).tutorial).toBeNull();
+    expect(run(free).deck.some((c) => c.cardId === 'dictionary')).toBe(true);
+    expect(free.profile.tutorialCompleted).toBe(true);
+  });
+
+  it('"Pular tutorial" encerra o guia no meio da run e não volta nas próximas', () => {
+    const first = started(createProfile());
+    expect(run(first).tutorial).not.toBeNull();
+    const skipped = gameReducer(first, { type: 'skip-tutorial' });
+    expect(run(skipped).tutorial).toBeNull();
+    expect(skipped.profile.tutorialCompleted).toBe(true);
+    const next = gameReducer(skipped, { type: 'new-run', packId: 'dados', seed: 12 });
+    expect(run(next).tutorial).toBeNull();
+  });
+
   it('segue o fluxo: começar blind, jogar, responder e continuar', () => {
     let s = play(started(), { type: 'start-blind' });
     expect(run(s).status).toBe('round');
