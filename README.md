@@ -2,22 +2,22 @@
 
 **Bet on your skills.**
 
-Programming roguelike where you bet on your coding skills. Um jogo de cartas no estilo **Balatro**, em que cada carta é um conceito de **Python**: você monta mãos de pôquer com os conceitos, responde a uma pergunta rápida a cada mão e aprende jogando.
+Programming roguelike where you bet on your coding skills. Um jogo de cartas no estilo **Balatro** com tema de programação: você monta mãos de pôquer com cartas de conceitos de Python, responde a uma pergunta rápida a cada mão e aprende jogando. As perguntas seguem a apresentação **Fábrica de software** (software, programação, Python/Java/PHP, bibliotecas, frameworks, no-code, jogos e filmes).
 
 As fichas são virtuais: não há dinheiro real, apostas reais nem compras dentro do jogo.
 
 ## Gameplay
 
-O loop é o de um roguelike de cartas (blinds, mãos, descartes, jokers, loja). Cada mão que você joga traz **uma pergunta rápida de Python**.
+O loop é o de um roguelike de cartas (blinds, mãos, descartes, jokers, loja). Cada mão que você joga traz **uma pergunta rápida** sobre o assunto da apresentação.
 
 ```
 Blind (meta) → comprar 8 cartas → escolher 1–5 → Jogar mão → pergunta rápida → placar (fichas × mult) → … → blind vencida → loja → próxima blind → Boss
 ```
 
 - **Blinds.** Uma run tem 5 antes (FUNDAMENTALS, LOGIC, LOOPS, DATA, HIGH TABLE) com 2 blinds cada: a blind normal e um boss que muda uma regra (máx. 3 cartas, cartas de CONTROLE anuladas, 1 mão a menos, sem descartes, e o boss final THE INFINITE LOOP). Cada blind dá **4 mãos** e **3 descartes**; bata a meta de pontos antes de as mãos acabarem.
-- **Cartas são conceitos de Python** (VARIABLE, CONDITION, FOR, LIST, DICTIONARY, FUNCTION, RECURSION…). Você tem um baralho de 24 cartas e compra 8 a cada blind. As cartas jogadas formam mãos (PAIR, FLUSH, STRAIGHT, FULL HOUSE, ROYAL HAND) e combos de conceitos (LIST + FOR = ITERATOR…). A **primeira carta escolhida** decide o assunto da pergunta; mãos de 4–5 cartas puxam as perguntas difíceis, e de 1–3 as fáceis.
-- **Pergunta rápida.** Cada mão traz uma pergunta de múltipla escolha sobre o conceito da primeira carta (às vezes com um trecho de Python). Errar não trava: a alternativa errada some e a mão perde 15% de precisão por erro (mínimo 40%). Depois de acertar, o jogo mostra a explicação do conceito.
-- **Placar.** Cada mão pontua (fichas × multiplicador): a mão certa, cada carta (o efeito dobra quando a pergunta é sobre o conceito dela), combos e jokers, e por fim a precisão.
+- **Cartas são conceitos de Python** (VARIABLE, CONDITION, FOR, LIST, DICTIONARY, FUNCTION, RECURSION…). Você tem um baralho de 24 cartas e compra 8 a cada blind. As cartas jogadas formam mãos (PAIR, FLUSH, STRAIGHT, FULL HOUSE, ROYAL HAND) e combos de conceitos (LIST + FOR = ITERATOR…). A **primeira carta escolhida** decide o tema da pergunta (cada carta tem um tema) e vale o dobro; mãos de 4–5 cartas puxam as perguntas difíceis, e de 1–3 as fáceis.
+- **Pergunta rápida.** Cada mão traz uma pergunta de múltipla escolha sobre o tema da primeira carta. Errar não trava: a alternativa errada some e a mão perde 15% de precisão por erro (mínimo 40%). Depois de acertar, o jogo mostra a explicação.
+- **Placar.** Cada mão pontua (fichas × multiplicador): a mão certa, cada carta (a primeira carta da mão vale o dobro), combos e jokers, e por fim a precisão.
 - **Jokers são idiomas de Python** (list comprehension, ternário, f-string, any/all…). Cada um dispara quando a sua mão tem as cartas daquele assunto (por exemplo, LIST + FOR) e mostra o que ensina, com um exemplo. A ordem dos jokers importa.
 - **Loja.** Entre as blinds: jokers, cartas e aulas de mão (nível +10 fichas, +1 mult); fichas ganhas pela blind, pelas mãos que sobraram e juros.
 - **Dealer.** Mentor ocasional que reage às respostas e acompanha a mesa. Nunca revela a resposta certa.
@@ -107,4 +107,4 @@ A integração contínua (`.github/workflows/ci.yml`) roda format, lint, typeche
 
 ## Evolução prevista
 
-A persistência fica atrás de `SaveRepository` (`src/lib/storage.ts`), o que permite adicionar cloud saves sem mexer nas regras do jogo. Mais perguntas por conceito e novos jokers entram só como dados (`src/content/quiz.ts`, `src/engine/jokers.ts`).
+A persistência fica atrás de `SaveRepository` (`src/lib/storage.ts`), o que permite adicionar cloud saves sem mexer nas regras do jogo. Mais perguntas e novos jokers entram só como dados (`src/content/quiz.ts`, `src/engine/jokers.ts`).

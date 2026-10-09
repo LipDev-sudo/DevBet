@@ -74,7 +74,7 @@ export function ScoreScreen() {
     <div className="screen-focus mx-auto max-w-4xl space-y-6">
       <header className="text-center">
         <p className="table-label">
-          {def.name} · {question.card.toUpperCase()}
+          {def.name} · {question.topic}
         </p>
         <h1 className="mt-1 text-2xl font-black tracking-tight text-ivory sm:text-4xl">
           {score.rank.name}

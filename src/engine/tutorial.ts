@@ -123,9 +123,9 @@ function lessonForQuiz(run: RunState, done: Set<LessonId>): Lesson | null {
   return {
     id: 'quiz',
     title: 'A pergunta da mão',
-    text: `Sua mão trouxe uma pergunta sobre ${question.card.toUpperCase()}. Escolha a alternativa certa para pontuar.`,
+    text: `Sua mão trouxe uma pergunta sobre ${question.topic}. Escolha a alternativa certa para pontuar.`,
     detail:
-      'Cada resposta errada tira 15% da pontuação da mão (a alternativa some e você tenta outra). A carta do conceito da pergunta vale o dobro.',
+      'Cada resposta errada tira 15% da pontuação da mão (a alternativa some e você tenta outra). A primeira carta que você escolheu vale o dobro.',
     target: T('quiz'),
     ack: false,
     action: 'Responda a pergunta',

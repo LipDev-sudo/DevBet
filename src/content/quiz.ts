@@ -1,23 +1,60 @@
 import type { CardId } from '@/engine/types';
 
 /**
- * Pergunta rápida que acompanha cada mão. A primeira carta jogada decide o conceito; mãos grandes (4–5 cartas)
- * puxam as perguntas mais difíceis. Errar não trava nada: cada resposta errada só tira precisão da mão.
+ * Perguntas do jogo, baseadas na apresentação "Fábrica de software" (introdução ao desenvolvimento de soluções
+ * tecnológicas para o ensino médio): software, programação, linguagens (Python, Java, PHP), frameworks, bibliotecas,
+ * sites no-code, jogos e filmes sobre programação.
+ *
+ * Cada carta puxa um tema da apresentação (`TOPIC_BY_CARD`). A primeira carta jogada decide a pergunta; mãos grandes
+ * (4–5 cartas) puxam as mais difíceis. Errar não trava nada: cada resposta errada só tira precisão da mão.
  */
 export interface Question {
   id: string;
-  /** Conceito da pergunta: a carta desse conceito vale o dobro na mão. */
+  /** Carta que puxa a pergunta: ela vale o dobro quando lidera a mão. */
   card: CardId;
+  /** Tema da apresentação, mostrado ao jogador. */
+  topic: string;
   hard: boolean;
   /** Use `código` entre crases para destacar trechos. */
   prompt: string;
-  /** Trecho de Python mostrado junto da pergunta. */
+  /** Trecho opcional mostrado junto da pergunta. */
   code?: string;
   options: string[];
   /** Posição da resposta certa em `options`. */
   answer: number;
   /** Mostrada depois de acertar: é aqui que o jogador aprende. */
   explanation: string;
+}
+
+export const TOPIC_BY_CARD: Record<CardId, string> = {
+  variable: 'O que é software',
+  operator: 'Tipos de software',
+  boolean: 'O que é programação',
+  condition: 'Para que serve programar',
+  for: 'Programação no dia a dia',
+  while: 'Python',
+  list: 'Java',
+  dictionary: 'PHP',
+  set: 'Escolhendo a linguagem',
+  function: 'Bibliotecas',
+  parameter: 'Como usar bibliotecas',
+  return: 'Frameworks',
+  recursion: 'Sites no-code',
+  search: 'Programação e jogos',
+  'unit-test': 'O Jogo da Imitação',
+  breakpoint: 'Estrelas Além do Tempo',
+};
+
+/**
+ * Gira as alternativas para que a certa não fique sempre na mesma posição. É determinístico (depende só do id),
+ * então a pergunta é a mesma em qualquer navegador e nos saves.
+ */
+function spread(question: Question): Question {
+  const n = question.options.length;
+  const target = [...question.id].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % n;
+  const shift = (target - question.answer + n) % n;
+  const options = question.options.map((_, i, all) => all[(i - shift + n) % n] as string);
+  return { ...question, options, answer: target };
 }
 
 const q = (
@@ -29,564 +66,667 @@ const q = (
   answer: number,
   explanation: string,
   code?: string,
-): Question => ({ id, card, hard, prompt, code, options, answer, explanation });
+): Question =>
+  spread({
+    id,
+    card,
+    topic: TOPIC_BY_CARD[card],
+    hard,
+    prompt,
+    code,
+    options,
+    answer,
+    explanation,
+  });
 
 export const QUESTIONS: readonly Question[] = [
-  // ------------------------------------------------------------ variable
+  // ------------------------------------------------------------ O que é software
   q(
     'q-variable-1',
     'variable',
     false,
-    'Qual linha guarda o valor 10 numa variável chamada `pontos`?',
-    ['pontos = 10', '10 = pontos', 'pontos == 10', 'guardar pontos 10'],
-    0,
-    'O `=` atribui o valor ao nome da variável. O `==` compara dois valores.',
+    'O que é um software?',
+    [
+      'A parte física do computador, como a tela e o teclado',
+      'A parte lógica: programas e instruções que orientam o hardware',
+      'Um tipo de cabo de internet',
+      'Somente os jogos instalados no celular',
+    ],
+    1,
+    'Software é a parte lógica dos dispositivos: programas e instruções que dizem ao hardware o que fazer.',
   ),
   q(
     'q-variable-2',
     'variable',
     false,
-    'O que aparece na tela?',
-    ['3', '4', 'x', 'Erro'],
+    'O que o software orienta o hardware a fazer?',
+    [
+      'Nada: o hardware funciona sozinho',
+      'Tarefas, como rodar aplicativos, abrir sites e gerenciar dados',
+      'Só ligar e desligar a tomada',
+      'Somente imprimir documentos',
+    ],
     1,
-    '`x` começou valendo 3 e depois recebeu 3 + 1. A variável guarda sempre o valor mais recente.',
-    'x = 3\nx = x + 1\nprint(x)',
+    'É o software que manda o hardware rodar aplicativos, abrir sites e gerenciar dados.',
   ),
   q(
     'q-variable-3',
     'variable',
     true,
-    'Qual destes é um nome de variável válido em Python?',
-    ['2fichas', 'total-fichas', 'total_fichas', 'total fichas'],
-    2,
-    'Nomes não começam com número e não têm espaço nem hífen. O sublinhado resolve: `total_fichas`.',
+    'Um celular tem tela, bateria, câmera, Android e o aplicativo do WhatsApp. Quais destes itens são software?',
+    ['Tela, bateria e câmera', 'Android e WhatsApp', 'Bateria e Android', 'Todos os cinco'],
+    1,
+    'Tela, bateria e câmera são hardware (físicos). O Android (sistema operacional) e o WhatsApp (aplicativo) são software.',
   ),
 
-  // ------------------------------------------------------------ operator
+  // ------------------------------------------------------------ Tipos de software
   q(
     'q-operator-1',
     'operator',
     false,
-    'Quanto vale `7 // 2`?',
-    ['3.5', '3', '4', '1'],
+    'Windows, Android e iOS são exemplos de qual tipo de software?',
+    ['Navegadores', 'Sistemas operacionais', 'Produtividade', 'Jogos'],
     1,
-    '`//` é a divisão inteira: descarta a parte decimal. Já `7 / 2` daria 3.5.',
+    'Windows, Android e iOS são sistemas operacionais: eles controlam o aparelho e rodam os outros programas.',
   ),
   q(
     'q-operator-2',
     'operator',
     false,
-    'Qual operador devolve o RESTO de uma divisão?',
-    ['/', '//', '%', '**'],
-    2,
-    '`%` é o módulo: `7 % 2` vale 1. É a forma clássica de testar se um número é par (`n % 2 == 0`).',
+    'Google Chrome, Safari e Firefox são exemplos de…',
+    ['Navegadores', 'Sistemas operacionais', 'Planilhas', 'Redes sociais'],
+    0,
+    'Navegadores são os softwares que usamos para abrir e visitar sites.',
   ),
   q(
     'q-operator-3',
     'operator',
     true,
-    'O que aparece na tela?',
-    ['20', '14', '50', '64'],
-    1,
-    'A potência vem primeiro (2 ** 2 = 4), depois a multiplicação (3 * 4 = 12) e por fim a soma: 2 + 12 = 14.',
-    'print(2 + 3 * 2 ** 2)',
+    'Word, Google Sheets e Canva ajudam a escrever, calcular e criar designs. Qual é a categoria deles?',
+    ['Sistemas operacionais', 'Navegadores', 'Streaming', 'Produtividade'],
+    3,
+    'Programas de produtividade existem para resolver tarefas do dia a dia: textos, tabelas, apresentações e designs.',
   ),
 
-  // ------------------------------------------------------------ boolean
+  // ------------------------------------------------------------ O que é programação
   q(
     'q-boolean-1',
     'boolean',
     false,
-    'Quanto vale `True and False`?',
-    ['True', 'False', 'None', 'Erro'],
+    'O que é programação?',
+    [
+      'Assistir vídeos sobre tecnologia',
+      'Escrever instruções organizadas numa linguagem que o computador entende',
+      'Montar as peças físicas de um computador',
+      'Navegar rápido na internet',
+    ],
     1,
-    'O `and` só dá True quando os DOIS lados são verdadeiros.',
+    'Programar é escrever um conjunto de instruções organizadas, numa linguagem que o computador entende.',
   ),
   q(
     'q-boolean-2',
     'boolean',
     false,
-    'Quanto vale `not False`?',
-    ['False', 'True', '0', 'None'],
-    1,
-    'O `not` inverte o valor: o contrário de False é True.',
+    'A programação funciona como uma…',
+    ['Receita de bolo', 'Pintura em tela', 'Música de fundo', 'Fotografia'],
+    0,
+    'Como numa receita, você passa os passos na ordem certa e o dispositivo executa exatamente o que foi escrito.',
   ),
   q(
     'q-boolean-3',
     'boolean',
     true,
-    'O que aparece na tela?',
-    ['False', 'True', 'None', 'Erro'],
+    'Na comparação com uma receita de bolo, quem seria o "cozinheiro" que segue as instruções?',
+    [
+      'O programador, que lê o código pronto',
+      'O computador, que executa as instruções escritas',
+      'O usuário, que só olha a tela',
+      'A internet, que entrega os ingredientes',
+    ],
     1,
-    'O `and` é avaliado antes do `or`: (False and False) vira False, e então True or False dá True.',
-    'print(True or False and False)',
+    'O programador escreve a receita (o código) e o computador é quem a executa, passo a passo.',
   ),
 
-  // ------------------------------------------------------------ condition
+  // ------------------------------------------------------------ Para que serve programar
   q(
     'q-condition-1',
     'condition',
     false,
-    'Em um `if / elif / else`, quando o `else` roda?',
+    'Para que serve a programação?',
     [
-      'Sempre, depois do if',
-      'Quando nenhuma condição anterior foi verdadeira',
-      'Só se o if for verdadeiro',
-      'Quando há um erro',
+      'Só para jogar videogame',
+      'Para criar sistemas, aplicativos, sites, jogos e ferramentas',
+      'Apenas para consertar impressoras',
+      'Não serve para nada no dia a dia',
     ],
     1,
-    'O `else` é o plano B: só roda se o `if` e todos os `elif` acima dele forem falsos.',
+    'Com programação criamos sistemas, aplicativos, sites, jogos e ferramentas.',
   ),
   q(
     'q-condition-2',
     'condition',
     false,
-    'O que aparece na tela?',
-    ['passou', 'reprovou', '7', 'Nada'],
+    'Além de criar coisas novas, programar também ajuda a…',
+    [
+      'Automatizar tarefas e resolver problemas',
+      'Aumentar o brilho da tela',
+      'Deixar a internet mais barata',
+      'Evitar o uso de eletricidade',
+    ],
     0,
-    'A condição `nota >= 7` é verdadeira (7 é maior ou igual a 7), então roda o bloco do `if`.',
-    'nota = 7\nif nota >= 7:\n    print("passou")\nelse:\n    print("reprovou")',
+    'A programação serve para criar ferramentas que automatizam tarefas ou solucionam problemas.',
   ),
   q(
     'q-condition-3',
     'condition',
     true,
-    'O que aparece na tela?',
-    ['A', 'B', 'A e B', 'C'],
-    0,
-    'O `elif` só é testado se o `if` for falso. Como `n > 3` é verdadeiro, só o "A" aparece.',
-    'n = 5\nif n > 3:\n    print("A")\nelif n > 4:\n    print("B")\nelse:\n    print("C")',
+    'Um software não é criado só "para ser um programa". Normalmente ele nasce para…',
+    [
+      'Ocupar espaço no celular',
+      'Resolver um problema ou atender a uma necessidade',
+      'Substituir o hardware',
+      'Enfeitar a tela do computador',
+    ],
+    1,
+    'Todo bom software parte de um problema real ou de uma necessidade das pessoas.',
   ),
 
-  // ------------------------------------------------------------ for
+  // ------------------------------------------------------------ Programação no dia a dia
   q(
     'q-for-1',
     'for',
     false,
-    'Quais valores o `for` percorre em `range(3)`?',
-    ['1, 2, 3', '0, 1, 2', '0, 1, 2, 3', 'Só o 3'],
-    1,
-    '`range(3)` começa no 0 e vai até o 2: o 3 fica de fora. São três valores.',
+    'WhatsApp, Instagram, TikTok e YouTube são exemplos de…',
+    ['Redes sociais', 'Sistemas operacionais', 'Linguagens de programação', 'Hardware'],
+    0,
+    'Todas essas redes sociais são feitas com programação.',
   ),
   q(
     'q-for-2',
     'for',
     false,
-    'Quantas vezes "DEV" aparece na tela?',
-    ['1', '2', '3', '4'],
+    'Netflix e Spotify, que entregam filmes e músicas pela internet, são exemplos de…',
+    ['Navegadores', 'Planilhas', 'Streaming', 'Sistemas operacionais'],
     2,
-    'O `for` repete o bloco uma vez para cada valor de `range(3)`: três vezes.',
-    'for i in range(3):\n    print("DEV")',
+    'Serviços de streaming transmitem conteúdo pela internet, e por trás deles há muito código.',
   ),
   q(
     'q-for-3',
     'for',
     true,
-    'O que aparece na tela?',
-    ['3', '6', '123', '0'],
+    'Quando você pesquisa algo no Google Search usando o Chrome, qual é a melhor descrição?',
+    [
+      'Nenhum código está envolvido',
+      'Dois softwares feitos com programação: o navegador e o buscador',
+      'Só hardware está trabalhando',
+      'É um filme em streaming',
+    ],
     1,
-    'A cada volta, `total` acumula o item: 0 + 1 + 2 + 3 = 6. Esse padrão se chama acumulador.',
-    'total = 0\nfor n in [1, 2, 3]:\n    total += n\nprint(total)',
+    'O Chrome (navegador) e o Google Search (busca) são softwares criados por programadores.',
   ),
 
-  // ------------------------------------------------------------ while
+  // ------------------------------------------------------------ Python
   q(
     'q-while-1',
     'while',
     false,
-    'Quando um `while` para de repetir?',
-    ['Quando a condição fica falsa', 'Depois de 10 voltas', 'Nunca para', 'Na primeira volta'],
+    'Na apresentação, o Python é comparado a…',
+    [
+      'Um canivete suíço',
+      'O esqueleto de um prédio',
+      'A fiação elétrica de uma casa',
+      'Um martelo',
+    ],
     0,
-    'O `while` testa a condição antes de cada volta e para quando ela deixa de ser verdadeira.',
+    'Python é como uma ferramenta universal: simples e direta, serve para muita coisa.',
   ),
   q(
     'q-while-2',
     'while',
     false,
-    'O que aparece na tela?',
-    ['2', '3', '4', '0'],
+    'Qual é uma característica do Python?',
+    [
+      'Ser muito rígida e complicada',
+      'Ser simples e versátil',
+      'Só servir para criar sites',
+      'Só funcionar em videogames',
+    ],
     1,
-    '`n` sobe de 0 até 3. Quando chega em 3, `n < 3` fica falso e o loop acaba com n valendo 3.',
-    'n = 0\nwhile n < 3:\n    n += 1\nprint(n)',
+    'A força do Python é a simplicidade e a versatilidade.',
   ),
   q(
     'q-while-3',
     'while',
     true,
-    'O que há de errado com esse código?',
+    'O que dá para construir com Python, segundo a apresentação?',
     [
-      'Nada: imprime 10 uma vez',
-      '`n` nunca muda, então é um loop infinito',
-      '`while` precisa de `range`',
-      'O `print` não pode ficar dentro do loop',
+      'Só planilhas',
+      'Desde automações rápidas até inteligência artificial complexa',
+      'Apenas sistemas operacionais',
+      'Só sites de venda online',
     ],
     1,
-    'Nada dentro do loop altera `n`, então `n > 0` é verdadeiro para sempre. Faltou algo como `n -= 1`.',
-    'n = 10\nwhile n > 0:\n    print(n)',
+    'Python vai de pequenas automações até inteligência artificial, sem complicações.',
   ),
 
-  // ------------------------------------------------------------ list
+  // ------------------------------------------------------------ Java
   q(
     'q-list-1',
     'list',
     false,
-    'O que aparece na tela?',
-    ['0', '5', '10', '15'],
+    'O Java é comparado a…',
+    [
+      'Um canivete suíço',
+      'O esqueleto e a fundação de um prédio de vários andares',
+      'A canalização de uma casa',
+      'Uma receita de bolo',
+    ],
     1,
-    'A contagem de posições começa no 0: `fichas[0]` é o primeiro item, o 5.',
-    'fichas = [5, 10, 15]\nprint(fichas[0])',
+    'Java é como a estrutura de um prédio: organizada e firme.',
   ),
   q(
     'q-list-2',
     'list',
     false,
-    'Qual método adiciona um item ao FINAL de uma lista?',
-    ['add()', 'append()', 'push()', 'insert_end()'],
+    'Quais palavras descrevem o Java?',
+    ['Simples e solta', 'Organizada, rígida e segura', 'Visual e sem código', 'Lenta e inútil'],
     1,
-    '`lista.append(x)` coloca `x` no fim. (`add` é dos conjuntos e `push` não existe em Python.)',
+    'Java é organizada, rígida e segura, ótima para sistemas grandes.',
   ),
   q(
     'q-list-3',
     'list',
     true,
-    'O que aparece na tela?',
-    ['4 4', '1 4', '3 4', '4 3'],
-    0,
-    'O índice -1 é o último item (4) e `len` conta os itens: são 4.',
-    'l = [1, 2, 3, 4]\nprint(l[-1], len(l))',
+    'Por que o Java é uma boa escolha para grandes sistemas e aplicações empresariais?',
+    [
+      'Porque ela não precisa de computador',
+      'Porque garante que sistemas grandes funcionem sem falhar',
+      'Porque foi criada só para fazer sites',
+      'Porque é a única linguagem que existe',
+    ],
+    1,
+    'A estrutura rígida e segura do Java ajuda grandes sistemas a funcionarem sem falhar.',
   ),
 
-  // ------------------------------------------------------------ dictionary
+  // ------------------------------------------------------------ PHP
   q(
     'q-dictionary-1',
     'dictionary',
     false,
-    'O que aparece na tela?',
-    ['ana', '3', "{'ana': 3}", 'Erro'],
-    1,
-    'Um dicionário guarda pares chave: valor. Pedir `d["ana"]` devolve o valor da chave, 3.',
-    'd = {"ana": 3}\nprint(d["ana"])',
+    'O PHP é descrito como o…',
+    ['Motor da Web', 'Canivete suíço', 'Esqueleto do prédio', 'Cozinheiro da receita'],
+    0,
+    'O PHP é o motor da web: foi criado para fazer sites funcionarem no servidor.',
   ),
   q(
     'q-dictionary-2',
     'dictionary',
     false,
-    'O que um dicionário guarda?',
-    ['Só números', 'Pares chave: valor', 'Só textos', 'Só itens em fila'],
-    1,
-    'Cada item tem uma chave (para procurar) e um valor (o que foi guardado).',
+    'O PHP foi criado especificamente para…',
+    [
+      'Fazer sites funcionarem no servidor',
+      'Criar jogos de computador',
+      'Controlar robôs',
+      'Editar vídeos',
+    ],
+    0,
+    'O PHP roda no servidor e faz os sites funcionarem.',
   ),
   q(
     'q-dictionary-3',
     'dictionary',
     true,
-    'O que aparece na tela?',
-    ['1', '2', '3', 'Erro'],
-    1,
-    'Atribuir a uma chave nova adiciona um par ao dicionário. Agora ele tem "a" e "b": 2 itens.',
-    'd = {"a": 1}\nd["b"] = 2\nprint(len(d))',
+    'O PHP é como a canalização e a fiação elétrica de uma casa. O que ele liga?',
+    [
+      'O usuário às bases de dados, de forma ágil e direta',
+      'O teclado ao mouse',
+      'A bateria à tela',
+      'O Wi-Fi à geladeira',
+    ],
+    0,
+    'Assim como a fiação leva energia, o PHP conecta o usuário às bases de dados.',
   ),
 
-  // ------------------------------------------------------------ set
+  // ------------------------------------------------------------ Escolhendo a linguagem
   q(
     'q-set-1',
     'set',
     false,
-    'Qual é a principal característica de um `set`?',
-    [
-      'Não aceita números',
-      'Não guarda itens repetidos',
-      'Guarda pares chave: valor',
-      'É sempre ordenado',
-    ],
-    1,
-    'Um conjunto ignora repetidos. Por isso `set(lista)` é um jeito rápido de tirar duplicatas.',
+    'Para uma automação rápida ou um projeto de inteligência artificial, qual linguagem da apresentação combina mais?',
+    ['Python', 'Java', 'PHP', 'Nenhuma'],
+    0,
+    'Python é simples e versátil: boa para automações e IA.',
   ),
   q(
     'q-set-2',
     'set',
     false,
-    'O que aparece na tela?',
-    ['4', '3', '2', 'Erro'],
+    'Para um site que precisa conversar com um banco de dados no servidor, a escolha mais natural é…',
+    ['Java', 'PHP', 'Planilha', 'Sistema operacional'],
     1,
-    'O 2 aparece duas vezes, mas o conjunto guarda um só: sobram 1, 2 e 3.',
-    'print(len({1, 2, 2, 3}))',
+    'O PHP nasceu para fazer sites funcionarem no servidor e acessar bases de dados.',
   ),
   q(
     'q-set-3',
     'set',
     true,
-    'O que aparece na tela?',
-    ['{1, 2, 3, 4}', '{2, 3}', '{1, 4}', '{}'],
+    'Ligue cada linguagem à sua analogia: Python, Java e PHP.',
+    [
+      'Python = esqueleto do prédio; Java = canivete suíço; PHP = motor da web',
+      'Python = canivete suíço; Java = esqueleto do prédio; PHP = canalização e fiação',
+      'Python = fiação; Java = canivete suíço; PHP = receita de bolo',
+      'Python = receita de bolo; Java = fiação; PHP = esqueleto do prédio',
+    ],
     1,
-    'O `&` é a interseção: só ficam os itens que estão nos DOIS conjuntos, o 2 e o 3.',
-    'a = {1, 2, 3}\nb = {2, 3, 4}\nprint(a & b)',
+    'Python é o canivete suíço, Java é a fundação do prédio e PHP é a canalização e fiação ligadas à casa.',
   ),
 
-  // ------------------------------------------------------------ function
+  // ------------------------------------------------------------ Bibliotecas
   q(
     'q-function-1',
     'function',
     false,
-    'Qual palavra define uma função em Python?',
-    ['func', 'function', 'def', 'fn'],
-    2,
-    '`def nome(parametros):` abre uma função. O corpo vem recuado logo abaixo.',
+    'O que é uma biblioteca (library) na programação?',
+    [
+      'Um lugar com livros de papel',
+      'Uma coleção de códigos prontos que você pode "pegar emprestado"',
+      'Um tipo de computador',
+      'Um site sem código',
+    ],
+    1,
+    'Biblioteca é uma coleção de códigos prontos que resolvem um problema específico.',
   ),
   q(
     'q-function-2',
     'function',
     false,
-    'Para que serve uma função?',
+    'Para que usamos bibliotecas?',
     [
-      'Só para enfeitar o código',
-      'Agrupar um trecho de código para reutilizar',
-      'Guardar dados',
-      'Repetir sem parar',
+      'Para reinventar a roda a cada projeto',
+      'Para resolver um problema sem precisar reescrever tudo',
+      'Para apagar o código pronto',
+      'Para desligar o computador',
     ],
     1,
-    'Escreva uma vez, use quantas vezes quiser. Isso evita copiar e colar o mesmo código.',
+    'Elas evitam "reinventar a roda": você usa o que já foi feito e testado.',
   ),
   q(
     'q-function-3',
     'function',
     true,
-    'O que aparece na tela?',
-    ['4', '8', '2', 'Erro'],
-    1,
-    'Primeiro roda a função de dentro: dobro(2) = 4. Depois dobro(4) = 8.',
-    'def dobro(n):\n    return n * 2\n\nprint(dobro(dobro(2)))',
+    'Qual destes é um bom exemplo de tarefa que uma biblioteca resolve?',
+    [
+      'Calcular datas, criar um gráfico ou animar um botão',
+      'Construir um computador inteiro',
+      'Instalar um sistema operacional',
+      'Trocar a bateria do celular',
+    ],
+    0,
+    'Cada biblioteca tem foco único: datas, gráficos, animações e assim por diante.',
   ),
 
-  // ------------------------------------------------------------ parameter
+  // ------------------------------------------------------------ Como usar bibliotecas
   q(
     'q-parameter-1',
     'parameter',
     false,
-    'Na função abaixo, o que é `nome`?',
-    ['Um parâmetro', 'Uma classe', 'Um valor fixo', 'Um comentário'],
-    0,
-    'Parâmetro é o nome que a função usa para receber o valor que você passa na chamada.',
-    'def ola(nome):\n    print("Olá,", nome)',
+    'Numa biblioteca, quem decide quando e como usá-la?',
+    [
+      'A própria biblioteca',
+      'O seu código: você está no controle',
+      'O sistema operacional',
+      'O usuário final',
+    ],
+    1,
+    'Você chama a biblioteca quando e como quiser: o controle é do seu código.',
   ),
   q(
     'q-parameter-2',
     'parameter',
     false,
-    'O que aparece na tela?',
-    ['23', '5', 'a + b', 'Erro'],
-    1,
-    'Os valores 2 e 3 viram `a` e `b`. A função devolve a + b = 5.',
-    'def soma(a, b):\n    return a + b\n\nprint(soma(2, 3))',
+    'Uma biblioteca costuma ter foco único. Isso quer dizer que ela…',
+    [
+      'Resolve uma tarefa ou um conjunto bem pequeno de tarefas',
+      'Faz tudo no projeto sozinha',
+      'Só funciona uma vez',
+      'Só existe para jogos',
+    ],
+    0,
+    'Foco único: ela é boa em uma coisa específica.',
   ),
   q(
     'q-parameter-3',
     'parameter',
     true,
-    'O que aparece na tela?',
-    ['6', '9', '3', 'Erro'],
+    'Por que se diz que uma biblioteca é "leve e flexível"?',
+    [
+      'Porque pesa poucos gramas',
+      'Porque dá para colocar e tirar do projeto sem quebrar a estrutura inteira',
+      'Porque só funciona no celular',
+      'Porque não precisa de código',
+    ],
     1,
-    'Quando você não passa `exp`, vale o valor padrão 2: 3 ** 2 = 9.',
-    'def poder(base, exp=2):\n    return base ** exp\n\nprint(poder(3))',
+    'Como é uma peça independente, você a adiciona ou remove com facilidade.',
   ),
 
-  // ------------------------------------------------------------ return
+  // ------------------------------------------------------------ Frameworks
   q(
     'q-return-1',
     'return',
     false,
-    'O que o `return` faz?',
+    'Um framework é uma estrutura pronta que…',
     [
-      'Imprime na tela',
-      'Devolve um valor e encerra a função',
-      'Repete a função',
-      'Cria uma variável',
+      'Organiza o projeto e dá a base para você construir em cima',
+      'Só serve para jogos',
+      'Apaga o seu código',
+      'Substitui o computador',
     ],
-    1,
-    '`return` entrega o resultado a quem chamou a função e termina a execução dela.',
+    0,
+    'Framework é uma estrutura base: ele define como o projeto se organiza e você completa o resto.',
   ),
   q(
     'q-return-2',
     'return',
     false,
-    'O `print("fim")` chega a rodar?',
-    ['Sim, sempre', 'Não: a função acaba no return', 'Só na segunda chamada', 'Dá erro'],
+    'Qual é a diferença de espírito entre biblioteca e framework?',
+    [
+      'Nenhuma, são a mesma coisa',
+      'Na biblioteca você chama o código; no framework a estrutura guia o seu código',
+      'Biblioteca é hardware e framework é software',
+      'Framework só existe em Python',
+    ],
     1,
-    'Tudo que vem depois de um `return` é ignorado, porque a função já terminou.',
-    'def f():\n    return 1\n    print("fim")\n\nf()',
+    'Com a biblioteca o controle é seu. Com o framework, ele impõe a estrutura e chama o seu código.',
   ),
   q(
     'q-return-3',
     'return',
     true,
-    'O que aparece na tela?',
-    ['6', '3', 'None', 'Erro'],
-    2,
-    'Sem `return`, a função devolve `None`. A conta `x * 2` foi feita, mas ninguém a devolveu.',
-    'def f(x):\n    x * 2\n\nprint(f(3))',
+    'Você precisa só de uma tarefa pequena, como gerar um gráfico. O que combina melhor?',
+    [
+      'Uma biblioteca',
+      'Um framework completo',
+      'Um novo sistema operacional',
+      'Um novo computador',
+    ],
+    0,
+    'Para uma tarefa pequena e específica, a biblioteca (leve e flexível) é a escolha certa.',
   ),
 
-  // ------------------------------------------------------------ recursion
+  // ------------------------------------------------------------ Sites no-code
   q(
     'q-recursion-1',
     'recursion',
     false,
-    'O que é recursão?',
+    'O que são sites no-code?',
     [
-      'Um loop com while',
-      'Uma função que chama a si mesma',
-      'Uma função sem parâmetros',
-      'Um erro de sintaxe',
+      'Sites criados por ferramentas visuais, sem digitar código',
+      'Sites que não funcionam',
+      'Sites que só têm texto',
+      'Sites escritos só em Python',
     ],
-    1,
-    'Na recursão a função resolve um pedaço do problema e chama a si mesma para o resto.',
+    0,
+    'No-code significa "sem código": você monta o site com ferramentas visuais.',
   ),
   q(
     'q-recursion-2',
     'recursion',
     false,
-    'Toda função recursiva precisa de…',
-    ['Um caso base que pare as chamadas', 'Uma lista', 'Um dicionário', 'Um while'],
+    'Qual destas linguagens você NÃO precisa digitar num site no-code?',
+    ['HTML, CSS e JavaScript', 'Português', 'Inglês', 'Emojis'],
     0,
-    'Sem um caso base, a função chamaria a si mesma para sempre até estourar a pilha.',
+    'As ferramentas no-code eliminam a necessidade de digitar HTML, CSS ou JavaScript.',
   ),
   q(
     'q-recursion-3',
     'recursion',
     true,
-    'O que aparece na tela?',
-    ['3', '6', '0', 'Erro'],
+    'Quais coisas podem ser criadas com ferramentas no-code?',
+    [
+      'Só planilhas',
+      'Páginas da web, lojas virtuais e sistemas',
+      'Apenas hardware',
+      'Somente filmes',
+    ],
     1,
-    'f(3) = 3 + f(2) = 3 + 2 + f(1) = 3 + 2 + 1 + f(0) = 6. O caso base f(0) devolve 0.',
-    'def f(n):\n    if n == 0:\n        return 0\n    return n + f(n - 1)\n\nprint(f(3))',
+    'Com no-code dá para criar páginas da web, lojas virtuais e sistemas inteiros.',
   ),
 
-  // ------------------------------------------------------------ search
+  // ------------------------------------------------------------ Programação e jogos
   q(
     'q-search-1',
     'search',
     false,
-    'Para achar um item numa lista DESORDENADA, o jeito mais simples é…',
-    ['Busca linear: olhar item por item', 'Busca binária', 'Ordenar sempre antes', 'Não tem como'],
+    '"The Farmer Was Replaced" é um jogo baseado em qual linguagem?',
+    ['Python', 'PHP', 'Java', 'Assembly'],
     0,
-    'A busca linear funciona em qualquer lista. A binária só funciona se ela estiver ordenada.',
+    'Nesse jogo você aprende a automatizar tarefas usando uma linguagem baseada em Python.',
   ),
   q(
     'q-search-2',
     'search',
     false,
-    'A busca binária exige que a lista esteja…',
-    ['Vazia', 'Ordenada', 'Só com números pares', 'Sem repetidos'],
+    '"Shenzhen I/O" usa qual tipo de linguagem?',
+    ['Python', 'Assembly customizado', 'PHP', 'HTML'],
     1,
-    'Ela olha o item do meio e descarta metade da lista. Isso só faz sentido se a lista estiver em ordem.',
+    'Shenzhen I/O ensina programação com um Assembly customizado, bem perto da máquina.',
   ),
   q(
     'q-search-3',
     'search',
     true,
-    'Quantas comparações, no máximo, a busca binária faz numa lista ordenada de 8 itens?',
-    ['8', '4', '2', '1'],
+    'Os dois jogos da apresentação, "The Farmer Was Replaced" e "Shenzhen I/O", têm em comum…',
+    [
+      'Só rodam em celulares',
+      'Usam programação como parte do jogo e estão disponíveis em computadores',
+      'Não têm código',
+      'São filmes na Netflix',
+    ],
     1,
-    'A cada passo ela descarta metade: 8 → 4 → 2 → 1. No máximo 4 comparações, contra até 8 da busca linear.',
+    'Ambos usam programação como mecânica de jogo e estão disponíveis em computadores.',
   ),
 
-  // ------------------------------------------------------------ unit-test
+  // ------------------------------------------------------------ O Jogo da Imitação
   q(
     'q-unit-test-1',
     'unit-test',
     false,
-    'O que é um teste unitário?',
-    [
-      'Um código que confere se uma função devolve o esperado',
-      'Um tipo de loop',
-      'Uma lista de erros',
-      'Um comentário',
-    ],
+    'O filme "O Jogo da Imitação" conta a história de qual matemático?',
+    ['Alan Turing', 'Katherine Johnson', 'Dorothy Vaughan', 'Mary Jackson'],
     0,
-    'Você escreve o resultado que espera e deixa o código conferir. Se alguém quebrar a função, o teste avisa.',
+    'O filme conta a história real de Alan Turing.',
   ),
   q(
     'q-unit-test-2',
     'unit-test',
     false,
-    'Se `soma(2, 2)` devolver 5, o que acontece?',
-    ['Nada', 'Dá erro (AssertionError)', 'Imprime 5', 'Corrige sozinho'],
+    'Qual era a missão quase impossível de Alan Turing na Segunda Guerra Mundial?',
+    [
+      'Construir um foguete',
+      'Decifrar a "Enigma", a máquina de códigos secretos',
+      'Criar um videogame',
+      'Fazer um site de buscas',
+    ],
     1,
-    'O `assert` para o programa com um erro quando a condição é falsa. É assim que o teste "reclama".',
-    'assert soma(2, 2) == 4',
+    'A missão era decifrar a Enigma, a máquina usada pelos inimigos.',
   ),
   q(
     'q-unit-test-3',
     'unit-test',
     true,
-    'Além do caso comum, o que também vale a pena testar?',
+    'Por que decifrar a Enigma era tão difícil?',
     [
-      'Só o caso comum',
-      'Casos limite, como lista vazia ou zero',
-      'Nada: testes são opcionais',
-      'Só números negativos',
+      'Porque ela só funcionava de dia',
+      'Porque as senhas mudavam todas as noites à meia-noite',
+      'Porque ela não tinha código algum',
+      'Porque era uma máquina de lavar',
     ],
     1,
-    'Os bugs moram nas bordas: lista vazia, zero, um único item. É lá que um bom teste procura.',
+    'As senhas mudavam todas as noites à meia-noite, o que tornava a tarefa quase impossível.',
   ),
 
-  // ------------------------------------------------------------ breakpoint
+  // ------------------------------------------------------------ Estrelas Além do Tempo
   q(
     'q-breakpoint-1',
     'breakpoint',
     false,
-    'Para que serve um breakpoint?',
+    'Quais são as três mulheres do filme "Estrelas Além do Tempo"?',
     [
-      'Pausar a execução numa linha para inspecionar o código',
-      'Apagar a linha',
-      'Deixar o programa mais rápido',
-      'Comentar o código',
+      'Katherine Johnson, Dorothy Vaughan e Mary Jackson',
+      'Ada Lovelace, Marie Curie e Rosa Parks',
+      'Alan Turing, Katherine Johnson e Mary Jackson',
+      'Dorothy Vaughan, Marie Curie e Ada Lovelace',
     ],
     0,
-    'Com a execução pausada, você olha com calma o que cada variável guarda naquele momento.',
+    'O filme conta a história real de Katherine Johnson, Dorothy Vaughan e Mary Jackson.',
   ),
   q(
     'q-breakpoint-2',
     'breakpoint',
     false,
-    'Parado num breakpoint, o que você pode fazer?',
-    ['Ver os valores das variáveis', 'Só fechar o programa', 'Trocar de linguagem', 'Nada'],
+    'Segundo a apresentação, como essas três mulheres mudaram o mundo?',
+    [
+      'Com a mente e a matemática',
+      'Com super-poderes de verdade',
+      'Com capas e máscaras',
+      'Só com sorte',
+    ],
     0,
-    'Inspecionar variáveis e andar linha a linha é a forma mais direta de achar onde um bug nasce.',
+    'Elas mudaram o mundo com a mente e a matemática, sem capas.',
   ),
   q(
     'q-breakpoint-3',
     'breakpoint',
     true,
-    'O que acontece ao rodar este código?',
+    'Onde estão disponíveis os dois filmes da apresentação?',
     [
-      'Imprime a e b direto',
-      'Imprime a e abre o depurador antes de imprimir b',
-      'Erro de sintaxe',
-      'Imprime só b',
+      'Os dois na Netflix',
+      '"O Jogo da Imitação" na Netflix e "Estrelas Além do Tempo" no Disney+',
+      '"O Jogo da Imitação" no Disney+ e "Estrelas Além do Tempo" na Netflix',
+      'Os dois só no cinema',
     ],
     1,
-    '`breakpoint()` abre o depurador (pdb). A execução fica pausada ali, esperando você, antes do `print("b")`.',
-    'print("a")\nbreakpoint()\nprint("b")',
+    '"O Jogo da Imitação" está na Netflix e "Estrelas Além do Tempo" no Disney+.',
   ),
 ];
 
-/** Pergunta do boss final: fixa na 1ª mão da THE INFINITE LOOP. */
-export const BOSS_QUESTION: Question = q(
-  'q-boss-infinite-loop',
-  'while',
-  true,
-  'THE INFINITE LOOP travou a mesa. Por que este loop nunca termina?',
-  [
-    '`print` consome as vidas',
-    '`vidas` nunca diminui, então `vidas > 0` é sempre verdadeiro',
-    '`while` não aceita números',
-    'Falta um `return`',
+/** Pergunta do boss final: fixa na 1ª mão da THE INFINITE LOOP. Resume a apresentação. */
+export const BOSS_QUESTION: Question = spread({
+  id: 'q-boss-infinite-loop',
+  card: 'while',
+  topic: 'Fábrica de software',
+  hard: true,
+  prompt: 'THE INFINITE LOOP quer a sua resposta final: qual frase define melhor um software?',
+  options: [
+    'É a parte física do computador, como a tela e o teclado',
+    'São programas e instruções que orientam o hardware a executar tarefas',
+    'É qualquer coisa que se conecta à internet',
+    'É só um tipo de jogo de computador',
   ],
-  1,
-  'Nada dentro do loop altera `vidas`. Faltou `vidas -= 1`: sem isso a condição nunca fica falsa.',
-  'vidas = 3\nwhile vidas > 0:\n    print("jogando")',
-);
+  answer: 1,
+  explanation:
+    'Software é a parte lógica dos dispositivos: programas e instruções que orientam o hardware. É isso que a Fábrica de software constrói.',
+});
 
 export const ALL_QUESTIONS: readonly Question[] = [...QUESTIONS, BOSS_QUESTION];
 
@@ -604,7 +744,7 @@ export function hasQuestion(id: string): boolean {
 
 /**
  * Perguntas candidatas para a carta que lidera a mão. Mãos grandes puxam as difíceis; se não houver,
- * cai para qualquer pergunta do conceito.
+ * cai para qualquer pergunta da carta.
  */
 export function questionPool(lead: CardId, big: boolean): Question[] {
   const all = QUESTIONS.filter((question) => question.card === lead);

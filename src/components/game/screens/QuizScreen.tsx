@@ -41,7 +41,7 @@ export function QuizScreen() {
         <div className="grid gap-4 p-4 pt-2 sm:p-5 sm:pt-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="min-w-0">
             <p className={`table-label ${isBoss ? '!text-crimson-hot' : ''}`}>
-              Pergunta da mão · {question.card.toUpperCase()}
+              Pergunta da mão · {question.topic}
             </p>
             <h1
               id="pergunta-titulo"

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { PlayingCard } from '@/components/ui/PlayingCard';
-import { QUESTIONS } from '@/content/quiz';
+import { TOPIC_BY_CARD } from '@/content/quiz';
 import { CARDS, getCard, RARITY_LABEL } from '@/engine/cards';
 import { COMBOS, comboLabel } from '@/engine/combos';
 import { HAND_RANKS } from '@/engine/hands';
@@ -136,8 +136,8 @@ export function CollectionView() {
               </pre>
               <p className="mt-4 text-xs leading-relaxed text-ivory-dim">
                 Efeito: +{selectedCard.chips} fichas e +{selectedCard.mult.toFixed(2)} de
-                multiplicador em qualquer mão; o dobro quando a pergunta da mão é sobre este
-                conceito ({QUESTIONS.filter((q) => q.card === selectedCard.id).length} perguntas).
+                multiplicador em qualquer mão; o dobro quando é a primeira carta da mão. Tema das
+                perguntas dela: {TOPIC_BY_CARD[selectedCard.id]}.
               </p>
             </div>
           </div>
