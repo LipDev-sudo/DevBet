@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { getQuestion } from '@/content/quiz';
 import {
+  answerQuestion,
   continueAfterScore,
   createRun,
   playHand,
-  registerRun,
-  saveDraft,
   startBlind,
-  submitHand,
   type Result,
   type RunState,
 } from '@/engine/blind';
@@ -30,7 +29,7 @@ const unwrap = (r: Result<RunState>): RunState => {
 const profile = { ...createProfile(), tutorialCompleted: true };
 const sampleRun = () => unwrap(createRun('logica', 5, profile));
 const inRound = () => unwrap(startBlind(sampleRun()));
-const inCoding = () => {
+const inQuiz = () => {
   const run = inRound();
   return unwrap(playHand(run, [run.round!.hand[0]!]));
 };
@@ -128,18 +127,20 @@ describe('retomar a run em cada etapa', () => {
     expect(back.round).toEqual(run.round);
   });
 
-  it('no exercício, volta com o rascunho, as execuções e o exercício da mão', () => {
-    let run = inCoding();
-    run = registerRun(saveDraft(run, 'def f():\n    return 1'));
+  it('na pergunta, volta com a pergunta da mão e as alternativas já erradas', () => {
+    const quiz = inQuiz();
+    const question = getQuestion(quiz.round!.play!.questionId);
+    const wrong = question.options.findIndex((_, i) => i !== question.answer);
+    const run = unwrap(answerQuestion(quiz, wrong));
     const back = reload(run)!;
-    expect(back.status).toBe('coding');
-    expect(back.round?.play?.draft).toBe('def f():\n    return 1');
-    expect(back.round?.play?.runsUsed).toBe(1);
-    expect(back.round?.play?.exerciseId).toBe(run.round?.play?.exerciseId);
+    expect(back.status).toBe('quiz');
+    expect(back.round?.play?.wrong).toEqual([wrong]);
+    expect(back.round?.play?.questionId).toBe(run.round?.play?.questionId);
   });
 
   it('no placar, volta com a pontuação da mão e continua dali', () => {
-    const scored = unwrap(submitHand(inCoding(), 'return 1'));
+    const quiz = inQuiz();
+    const scored = unwrap(answerQuestion(quiz, getQuestion(quiz.round!.play!.questionId).answer));
     const back = reload(scored)!;
     expect(back.status).toBe('scored');
     expect(back.round?.last?.score.total).toBe(scored.round?.last?.score.total);
@@ -147,25 +148,28 @@ describe('retomar a run em cada etapa', () => {
     expect(next.ok).toBe(true);
   });
 
-  it('descarta uma run cujo exercício deixou de existir ou com cartas fora do baralho', () => {
-    const run = inCoding();
+  it('descarta uma run cuja pergunta sumiu, com alternativa inválida ou cartas fora do baralho', () => {
+    const run = inQuiz();
     const broken = JSON.parse(JSON.stringify(run));
-    broken.round.play.exerciseId = 'exercicio-que-sumiu';
+    broken.round.play.questionId = 'pergunta-que-sumiu';
     expect(parseRun(broken)).toBeNull();
+    const invalid = JSON.parse(JSON.stringify(run));
+    invalid.round.play.wrong = [42];
+    expect(parseRun(invalid)).toBeNull();
     const ghost = JSON.parse(JSON.stringify(inRound()));
     ghost.round.hand[0] = 'uid-fantasma';
     expect(parseRun(ghost)).toBeNull();
   });
 
-  it('filtra jokers e exercícios usados desconhecidos, sem perder a run', () => {
+  it('filtra jokers e perguntas usadas desconhecidos, sem perder a run', () => {
     const run = {
       ...inRound(),
       jokers: ['comprehension', 'joker-que-sumiu'],
-      usedExercises: ['x'],
+      usedQuestions: ['x'],
     };
     const back = reload(run)!;
     expect(back.jokers).toEqual(['comprehension']);
-    expect(back.usedExercises).toEqual([]);
+    expect(back.usedQuestions).toEqual([]);
   });
 
   it('runs encerradas (vitória, derrota, abandono) sobrevivem ao reload', () => {

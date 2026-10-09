@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { exercisePool, getExercise } from '@/content/exercises';
+import { getQuestion, questionPool } from '@/content/quiz';
 import { getCard } from './cards';
 import {
   ANTES,
+  answerQuestion,
   BASE_DISCARDS,
   BASE_HANDS,
   BIG_HAND,
@@ -14,7 +15,6 @@ import {
   currentBlind,
   deckEntry,
   discard,
-  forfeitHand,
   HAND_SIZE,
   JOKER_SLOTS,
   leaveShop,
@@ -25,7 +25,6 @@ import {
   sellJoker,
   startBlind,
   STARTER_PACKS,
-  submitHand,
   type Result,
   type RunState,
 } from './blind';
@@ -58,6 +57,12 @@ function withHand(run: RunState, cardIds: string[]): RunState {
     ...run,
     round: { ...round, hand: [...chosen, ...fill], drawPile: rest.slice(fill.length) },
   };
+}
+
+/** Responde a pergunta da mão com a alternativa certa. */
+function solve(run: RunState): RunState {
+  const question = getQuestion(run.round!.play!.questionId);
+  return unwrap(answerQuestion(run, question.answer));
 }
 
 function inRound(packId = 'logica', seed = 7): RunState {
@@ -130,41 +135,41 @@ describe('descartar', () => {
 });
 
 describe('jogar uma mão', () => {
-  it('1 a 3 cartas pedem um mini-desafio do conceito da 1ª carta escolhida', () => {
+  it('jogar abre a pergunta do conceito da 1ª carta escolhida', () => {
     const run = inRound();
     const hand = run.round!.hand;
     const lead = hand[2]!;
     const next = unwrap(playHand(run, [lead, hand[0]!]));
-    expect(next.status).toBe('coding');
+    expect(next.status).toBe('quiz');
     expect(next.round!.hand).not.toContain(lead);
     const play = next.round!.play!;
     expect(play.uids).toEqual([lead, hand[0]]);
-    const exercise = getExercise(play.exerciseId);
-    expect(exercise.id.startsWith('mini-')).toBe(true);
-    expect(exercise.concepts[0]).toBe(deckEntry(run, lead).cardId);
-    expect(next.usedExercises).toContain(exercise.id);
+    expect(play.wrong).toEqual([]);
+    const question = getQuestion(play.questionId);
+    expect(question.card).toBe(deckEntry(run, lead).cardId);
+    expect(next.usedQuestions).toContain(question.id);
   });
 
-  it('mãos grandes pedem um desafio completo quando o conceito tem um', () => {
+  it('mãos grandes puxam perguntas difíceis; mãos pequenas, as fáceis', () => {
     const run = withHand(inRound('dados', 3), ['for', 'list', 'variable', 'operator', 'condition']);
     const uids = run.round!.hand.slice(0, BIG_HAND);
-    const next = unwrap(playHand(run, uids));
-    const exercise = getExercise(next.round!.play!.exerciseId);
-    expect(exercise.id.startsWith('mini-')).toBe(false);
-    expect(exercise.concepts).toContain('for');
+    const big = unwrap(playHand(run, uids));
+    expect(getQuestion(big.round!.play!.questionId).hard).toBe(true);
+    const small = unwrap(playHand(run, uids.slice(0, 2)));
+    expect(getQuestion(small.round!.play!.questionId).hard).toBe(false);
   });
 
-  it('não repete exercício enquanto houver outro disponível', () => {
+  it('não repete pergunta enquanto houver outra disponível', () => {
     const base = withHand(inRound('dados', 11), ['variable', 'operator']);
-    const pool = exercisePool('variable', false);
+    const pool = questionPool('variable', false);
     expect(pool.length).toBeGreaterThanOrEqual(2);
     const lead = base.round!.hand[0]!;
-    const used = pool.slice(1).map((exercise) => exercise.id);
-    const next = unwrap(playHand({ ...base, usedExercises: used }, [lead]));
-    expect(next.round!.play!.exerciseId).toBe(pool[0]!.id);
-    // Esgotado o conjunto, o exercício pode se repetir em vez de travar a mão.
-    const all = unwrap(playHand({ ...base, usedExercises: pool.map((e) => e.id) }, [lead]));
-    expect(pool.map((e) => e.id)).toContain(all.round!.play!.exerciseId);
+    const used = pool.slice(1).map((question) => question.id);
+    const next = unwrap(playHand({ ...base, usedQuestions: used }, [lead]));
+    expect(next.round!.play!.questionId).toBe(pool[0]!.id);
+    // Esgotado o conjunto, a pergunta pode se repetir em vez de travar a mão.
+    const all = unwrap(playHand({ ...base, usedQuestions: pool.map((q) => q.id) }, [lead]));
+    expect(pool.map((q) => q.id)).toContain(all.round!.play!.questionId);
   });
 
   it('valida as escolhas e o limite do boss', () => {
@@ -181,23 +186,55 @@ describe('jogar uma mão', () => {
     expect(canPlay(boss, boss.round!.hand.slice(0, 3))).toBeNull();
   });
 
-  it('o boss final força o desafio THE INFINITE LOOP na 1ª mão', () => {
+  it('o boss final força a pergunta THE INFINITE LOOP na 1ª mão', () => {
     const base = fresh();
     const run = unwrap(
       startBlind({ ...base, ante: ANTES.length - 1, blindIndex: 1, status: 'blind' }),
     );
     const next = unwrap(playHand(run, [run.round!.hand[0]!]));
-    expect(next.round!.play!.exerciseId).toBe('boss-infinite-loop');
+    expect(next.round!.play!.questionId).toBe('q-boss-infinite-loop');
+  });
+});
+
+describe('responder a pergunta', () => {
+  function asked(run = inRound()) {
+    return unwrap(playHand(run, [run.round!.hand[0]!]));
+  }
+
+  it('errar tira a alternativa e não pontua; acertar pontua com precisão menor', () => {
+    const quiz = asked();
+    const question = getQuestion(quiz.round!.play!.questionId);
+    const wrong = question.options.findIndex((_, i) => i !== question.answer);
+    const after = unwrap(answerQuestion(quiz, wrong));
+    expect(after.status).toBe('quiz');
+    expect(after.round!.play!.wrong).toEqual([wrong]);
+    expect(after.round!.roundScore).toBe(0);
+    const repeated = answerQuestion(after, wrong);
+    expect(repeated.ok).toBe(false);
+    const done = solve(after);
+    expect(done.status).toBe('scored');
+    expect(done.round!.last!.wrongAnswers).toBe(1);
+    expect(done.round!.last!.score.precision).toBeLessThan(1);
+    const clean = solve(quiz);
+    expect(clean.round!.last!.score.precision).toBe(1);
+    expect(clean.round!.last!.score.total).toBeGreaterThan(done.round!.last!.score.total);
+  });
+
+  it('valida a alternativa e o estado', () => {
+    const quiz = asked();
+    expect(answerQuestion(quiz, 99).ok).toBe(false);
+    expect(answerQuestion(quiz, -1).ok).toBe(false);
+    expect(answerQuestion(inRound(), 0).ok).toBe(false);
   });
 });
 
 describe('pontuar e seguir', () => {
-  function playOnce(run: RunState, code = 'return 1') {
+  function playOnce(run: RunState) {
     const lead = run.round!.hand[0]!;
-    return unwrap(submitHand(unwrap(playHand(run, [lead])), code));
+    return solve(unwrap(playHand(run, [lead])));
   }
 
-  it('entregar pontua, gasta uma mão e mostra o placar', () => {
+  it('acertar pontua, gasta uma mão e mostra o placar', () => {
     const run = inRound();
     const scored = playOnce(run);
     expect(scored.status).toBe('scored');
@@ -210,15 +247,6 @@ describe('pontuar e seguir', () => {
     expect(scored.round!.hand).toHaveLength(HAND_SIZE - 1);
   });
 
-  it('desistir gasta a mão e vale zero', () => {
-    const run = inRound();
-    const lead = run.round!.hand[0]!;
-    const next = unwrap(forfeitHand(unwrap(playHand(run, [lead]))));
-    expect(next.round!.roundScore).toBe(0);
-    expect(next.round!.last!.forfeit).toBe(true);
-    expect(next.round!.handsLeft).toBe(BASE_HANDS - 1);
-  });
-
   it('continuar compra cartas até 8 e volta para a rodada', () => {
     const run = inRound();
     const scored = playOnce({ ...run, round: { ...run.round!, target: 99999 } });
@@ -229,10 +257,9 @@ describe('pontuar e seguir', () => {
 
   it('sem mãos e abaixo da meta é derrota', () => {
     let run = inRound();
+    run = { ...run, round: { ...run.round!, target: 999999 } };
     for (let i = 0; i < BASE_HANDS; i++) {
-      const lead = run.round!.hand[0]!;
-      run = unwrap(forfeitHand(unwrap(playHand(run, [lead]))));
-      run = unwrap(continueAfterScore(run));
+      run = unwrap(continueAfterScore(playOnce(run)));
       if (run.status === 'lost') break;
     }
     expect(run.status).toBe('lost');
@@ -259,7 +286,7 @@ describe('loja', () => {
     let run = inRound();
     run = { ...run, round: { ...run.round!, target: 1 } };
     const lead = run.round!.hand[0]!;
-    run = unwrap(submitHand(unwrap(playHand(run, [lead])), 'return 1'));
+    run = solve(unwrap(playHand(run, [lead])));
     run = unwrap(continueAfterScore(run));
     return unwrap(openShop(run));
   }
@@ -323,7 +350,7 @@ describe('loja', () => {
     );
     run = { ...run, round: { ...run.round!, target: 1 } };
     const lead = run.round!.hand[0]!;
-    run = unwrap(submitHand(unwrap(playHand(run, [lead])), 'return 1'));
+    run = solve(unwrap(playHand(run, [lead])));
     run = unwrap(continueAfterScore(run));
     expect(run.status).toBe('cleared');
     run = unwrap(openShop(run));

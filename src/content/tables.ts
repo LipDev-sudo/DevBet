@@ -1,5 +1,3 @@
-import { BOSS_CHALLENGE } from './challenges';
-
 /** Como o Dealer se comporta e como o ambiente se apresenta. Evolui junto com o jogador. */
 export type DealerTone = 'warm' | 'focused' | 'severe';
 
@@ -164,7 +162,7 @@ export const TABLES: readonly TableDef[] = [
     id: 'high-table',
     number: 0,
     name: 'HIGH TABLE',
-    areaId: BOSS_CHALLENGE.areaId,
+    areaId: 'engenharia',
     topics: 'Depuração',
     tone: 'severe',
     ambient: { glow: '217 72 90', glowOpacity: 0.26, vignette: 0.65, rail: 'rgb(217 72 90 / 0.6)' },

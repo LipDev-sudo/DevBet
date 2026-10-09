@@ -3,16 +3,8 @@ import type { DealerKind, Mood } from '@/engine/dealer';
 import { Dealer } from './Dealer';
 
 const KIND_META: Partial<Record<DealerKind, { label: string; className: string }>> = {
-  syntax: { label: 'Sintaxe', className: 'text-crimson-hot ring-crimson-hot/50' },
-  runtime: { label: 'Erro de execução', className: 'text-crimson-hot ring-crimson-hot/50' },
-  logic: { label: 'Lógica', className: 'text-ivory ring-white/30' },
-  partial: { label: 'Quase', className: 'text-ivory ring-white/30' },
-  timeout: { label: 'Travou', className: 'text-crimson-hot ring-crimson-hot/50' },
-  retry: { label: 'Recue um passo', className: 'text-ivory ring-white/30' },
-  limit: { label: 'Limite', className: 'text-ivory ring-white/30' },
-  bust: { label: 'Bust', className: 'text-crimson-hot ring-crimson-hot/50' },
-  success: { label: 'Aprovado', className: 'text-win ring-win/40' },
-  efficient: { label: 'Eficiente', className: 'text-gold-light ring-gold/50' },
+  wrong: { label: 'Errou', className: 'text-crimson-hot ring-crimson-hot/50' },
+  success: { label: 'Acertou', className: 'text-win ring-win/40' },
 };
 
 /**
@@ -34,10 +26,10 @@ export function DealerDialogue({
   className = '',
 }: {
   text: string;
-  /** Explicação técnica complementar (ex.: o que o teste esperava). */
+  /** Explicação complementar. */
   detail?: React.ReactNode;
   nudge?: string;
-  /** Tipo da reação: vira uma etiqueta que separa sintaxe, lógica, sucesso e eficiência. */
+  /** Tipo da reação: vira uma etiqueta (acertou, errou). */
   kind?: DealerKind;
   mood?: Mood;
   tone?: DealerTone;

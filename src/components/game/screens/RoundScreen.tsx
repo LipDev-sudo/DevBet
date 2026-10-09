@@ -93,7 +93,7 @@ export function RoundPanel({
               <span className="text-crimson-hot">{estimate.mult}</span>
             </p>
             <p className="mt-1 text-[0.7rem] text-ivory-dim">
-              Mínimo, sem jokers: o código entregue decide o resto.
+              Mínimo, sem jokers: a pergunta e os jokers decidem o resto.
             </p>
           </>
         ) : (
@@ -280,7 +280,7 @@ export function RoundScreen() {
           </ul>
           {lead && (
             <p className="mt-4 text-center text-xs text-ivory-dim" role="status">
-              ★ {getCard(lead.cardId).name} decide o exercício desta mão.
+              ★ {getCard(lead.cardId).name} decide a pergunta desta mão.
             </p>
           )}
         </section>
@@ -325,7 +325,7 @@ export function RoundScreen() {
             ))}
           </div>
           <p className="basis-full text-center text-xs text-ivory-dim">
-            {playReason ?? discardReason ?? 'Jogar a mão abre o exercício de código.'}
+            {playReason ?? discardReason ?? 'Jogar a mão abre uma pergunta rápida.'}
             {sel.length > 0 && discardReason && playReason === null && ` ${discardReason}`}
           </p>
         </div>

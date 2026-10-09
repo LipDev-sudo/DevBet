@@ -55,31 +55,22 @@ const note = async (page) => {
   await page.waitForTimeout(1500);
 
   l = await note(page);
-  check(l?.id === 'code', `No exercício: lição "${l?.id}"`);
-  const deliver = page.getByRole('button', { name: 'Entregar' });
-  check(await deliver.isDisabled(), 'Entregar fica travado até executar de verdade');
-  const title = await f.exerciseTitle(page);
-  await f.setCode(page, f.solutionFor(title));
-  await page.getByRole('button', { name: 'Executar' }).click();
-  await page.waitForTimeout(4500);
+  check(l?.id === 'quiz', `Na pergunta: lição "${l?.id}"`);
+  await f.answerWrong(page, 1);
+  await page.waitForTimeout(400);
   l = await note(page);
-  check(l?.id === 'deliver', `Depois de executar: lição "${l?.id}"`);
-  check(!(await deliver.isDisabled()), 'Entregar liberado após uma execução real');
+  check(l?.id === 'quiz', 'Errar uma alternativa não conclui a lição');
   await page.reload({ waitUntil: 'load' });
   await page.waitForTimeout(1500);
   l = await note(page);
-  check(l?.id === 'deliver', 'Reload mantém a lição e o rascunho');
-  await f.setCode(page, f.solutionFor(title));
-  await deliver.click();
-  await page
-    .getByRole('button', { name: /Continuar|Blind vencida|Suas mãos acabaram/ })
-    .waitFor({ timeout: 30000 });
+  check(l?.id === 'quiz', 'Reload mantém a lição e a alternativa riscada');
+  await f.solveAndDeliver(page);
   l = await note(page);
   check(l?.id === 'score', `No placar: lição "${l?.id}"`);
   await page.getByRole('button', { name: 'Entendi' }).click();
   await f.continueAfterScore(page);
 
-  // Joga mãos até vencer a blind (cada mão grande pede um desafio completo)
+  // Joga mãos até vencer a blind (cada mão grande puxa uma pergunta mais difícil)
   let run = await f.getRun(page);
   for (let i = 0; i < 3 && run.status === 'round'; i++) {
     l = await note(page);

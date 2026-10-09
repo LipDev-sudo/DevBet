@@ -50,7 +50,7 @@ export function EndScreen() {
           <DealerDialogue
             avatar={false}
             className="-mt-2 max-w-md text-left"
-            kind={won ? 'success' : abandoned ? undefined : 'bust'}
+            kind={won ? 'success' : undefined}
             mood={won ? 'success' : 'serious'}
             tone="severe"
             text={
@@ -58,7 +58,7 @@ export function EndScreen() {
                 ? 'Boa mão. A casa perdeu desta vez.'
                 : abandoned
                   ? 'Você abandonou a run. O XP que você ganhou continua salvo.'
-                  : 'Suas mãos acabaram antes da meta. Revise o código, junte combos e volte.'
+                  : 'Suas mãos acabaram antes da meta. Revise os conceitos, junte combos e volte.'
             }
           />
         </div>
@@ -95,7 +95,7 @@ export function EndScreen() {
             era <strong>{lost.target}</strong>.
           </p>
           <p className="mt-2 text-sm leading-relaxed text-ivory-dim">
-            Mãos maiores e combos de conceitos pontuam mais, e jokers premiam código bem escrito.
+            Mãos maiores e combos de conceitos pontuam mais, e jokers dão bônus a mãos bem montadas.
             Use os descartes para buscar combos antes de jogar.
           </p>
         </section>

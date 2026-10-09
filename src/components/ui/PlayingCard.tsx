@@ -98,7 +98,7 @@ export function PlayingCard({
       data-boosted={boosted}
       data-debuffed={debuffed}
       aria-pressed={interactive ? selected : undefined}
-      aria-label={`${card.name}, ${CATEGORY_LABEL[card.category]}, carta ${RARITY_LABEL[card.rarity].toLowerCase()}. +${effect.chips} fichas e +${fmtMult(effect.mult)} de multiplicador${debuffed ? '. Anulada pelo boss: não pontua' : ''}${boosted ? ', dobrado porque o desafio usa este conceito' : '; dobra se o desafio usar este conceito'}`}
+      aria-label={`${card.name}, ${CATEGORY_LABEL[card.category]}, carta ${RARITY_LABEL[card.rarity].toLowerCase()}. +${effect.chips} fichas e +${fmtMult(effect.mult)} de multiplicador${debuffed ? '. Anulada pelo boss: não pontua' : ''}${boosted ? ', dobrado porque a pergunta é sobre este conceito' : '; dobra se a pergunta for sobre este conceito'}`}
       className={`playing-card text-left ${base}`}
       style={style}
     >

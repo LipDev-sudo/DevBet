@@ -178,6 +178,21 @@ body {
     box-shadow: inset 0 0 80px rgb(0 0 0 / 0.35);
   }
 
+  /*
+   * Cassino virtual minimalista: feltro verde escuro com vinheta e uma grade discreta de pontos
+   * (como a margem de um editor de código). Só nas telas de jogo.
+   */
+  .table-felt {
+    background:
+      radial-gradient(rgb(255 255 255 / 0.045) 1px, transparent 1.2px) 0 0 / 22px 22px,
+      radial-gradient(ellipse 85% 70% at 50% 38%, #12392c 0%, #0b241b 52%, #050d0a 100%);
+  }
+  /* Trilho da mesa: uma linha fina dourada, como o acabamento de uma mesa de cassino. */
+  .table-rail {
+    border-bottom: 1px solid rgb(201 162 74 / 0.45);
+    box-shadow: 0 1px 0 rgb(0 0 0 / 0.5);
+  }
+
   /* Barra de status */
   .wood {
     background: var(--color-ink-2);

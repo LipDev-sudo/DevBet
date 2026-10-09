@@ -9,10 +9,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: 'DEVBet — Bet on your skills.', template: '%s · DEVBet' },
   description:
-    'Roguelike de cartas em que programar é a jogabilidade. Escreva código, monte combos e vença a mesa.',
+    'Roguelike de cartas estilo Balatro com conceitos de Python. Monte combos, responda e vença a mesa.',
   openGraph: {
     title: 'DEVBet — Bet on your skills.',
-    description: 'Aprenda programação escrevendo código de verdade.',
+    description: 'Aprenda Python jogando cartas.',
     type: 'website',
     locale: 'pt_BR',
   },

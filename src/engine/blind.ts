@@ -1,8 +1,6 @@
-import { exercisePool, getExercise } from '@/content/exercises';
-import { BOSS_CHALLENGE } from '@/content/challenges';
+import { BOSS_QUESTION, getQuestion, questionPool } from '@/content/quiz';
 import { CARDS, getCard, RARITY_WEIGHT } from './cards';
 import { COMBOS } from './combos';
-import { hintBlockedReason, nextHintLevel, scoredHints } from './hints';
 import { scoreHand, previewPlay, type HandScore } from './handscore';
 import { getJoker, JOKERS, RARITY_JOKER_WEIGHT } from './jokers';
 import { levelFromXp, type Profile } from './progression';
@@ -23,7 +21,7 @@ export const REROLL_BASE = 2;
 export const HAND_UPGRADE_PRICE = 5;
 export const MAX_DECK = 40;
 export const MIN_DECK = 12;
-/** Cartas jogadas fora da mão grande (1–3) pedem mini-desafios; 4–5 pedem desafios completos. */
+/** Mãos de 1–3 cartas puxam perguntas fáceis; 4–5 cartas puxam as difíceis (e valem mais). */
 export const BIG_HAND = 4;
 
 export interface BossRule {
@@ -45,7 +43,7 @@ export interface BlindDef {
   target: number;
   reward: number;
   boss?: BossRule;
-  /** Desafio que a PRIMEIRA mão da blind precisa usar (o chefe final). */
+  /** Pergunta que a PRIMEIRA mão da blind precisa usar (o chefe final). */
   forcedFirst?: string;
 }
 
@@ -71,8 +69,8 @@ export const ANTES: readonly AnteDef[] = [
     areaId: 'fundamentos',
     name: 'Fundamentos',
     blinds: [
-      blind(0, 0, 'Mesa Aberta', 600, 3),
-      blind(0, 1, 'O Crupiê Cauteloso', 720, 5, {
+      blind(0, 0, 'Mesa Aberta', 900, 3),
+      blind(0, 1, 'O Crupiê Cauteloso', 1080, 5, {
         boss: {
           id: 'max-3',
           name: 'O Crupiê Cauteloso',
@@ -87,8 +85,8 @@ export const ANTES: readonly AnteDef[] = [
     areaId: 'logica',
     name: 'Lógica',
     blinds: [
-      blind(1, 0, 'Mesa de Decisões', 870, 4),
-      blind(1, 1, 'O Juiz Rígido', 1040, 6, {
+      blind(1, 0, 'Mesa de Decisões', 1300, 4),
+      blind(1, 1, 'O Juiz Rígido', 1560, 6, {
         boss: {
           id: 'debuff-controle',
           name: 'O Juiz Rígido',
@@ -103,8 +101,8 @@ export const ANTES: readonly AnteDef[] = [
     areaId: 'loops',
     name: 'Loops',
     blinds: [
-      blind(2, 0, 'Mesa Giratória', 1250, 4),
-      blind(2, 1, 'O Relojoeiro', 1500, 7, {
+      blind(2, 0, 'Mesa Giratória', 1880, 4),
+      blind(2, 1, 'O Relojoeiro', 2250, 7, {
         boss: {
           id: 'hands-minus',
           name: 'O Relojoeiro',
@@ -119,8 +117,8 @@ export const ANTES: readonly AnteDef[] = [
     areaId: 'estruturas',
     name: 'Dados',
     blinds: [
-      blind(3, 0, 'Mesa de Coleções', 1800, 5),
-      blind(3, 1, 'O Arquivista', 2150, 8, {
+      blind(3, 0, 'Mesa de Coleções', 2700, 5),
+      blind(3, 1, 'O Arquivista', 3220, 8, {
         boss: {
           id: 'no-discards',
           name: 'O Arquivista',
@@ -135,15 +133,15 @@ export const ANTES: readonly AnteDef[] = [
     areaId: 'engenharia',
     name: 'High Table',
     blinds: [
-      blind(4, 0, 'A Mesa Alta', 2600, 6),
-      blind(4, 1, 'THE INFINITE LOOP', 3100, 12, {
+      blind(4, 0, 'A Mesa Alta', 3900, 6),
+      blind(4, 1, 'THE INFINITE LOOP', 4650, 12, {
         boss: {
           id: 'debuff-common',
           name: 'THE INFINITE LOOP',
-          text: 'A 1ª mão é o desafio do boss. Cartas COMUNS não pontuam.',
+          text: 'A 1ª mão é a pergunta do boss. Cartas COMUNS não pontuam.',
           debuffRarity: 'common',
         },
-        forcedFirst: BOSS_CHALLENGE.id,
+        forcedFirst: BOSS_QUESTION.id,
       }),
     ],
   },
@@ -235,7 +233,7 @@ export const TUTORIAL_PACK_ID = 'funcoes';
 export type RunStatus =
   | 'blind' // tela da blind: meta, regra do boss, botão de começar
   | 'round' // escolhendo cartas
-  | 'coding' // resolvendo o exercício da mão jogada
+  | 'quiz' // respondendo a pergunta da mão jogada
   | 'scored' // pontuação da mão na tela
   | 'cleared' // blind vencida: resumo da recompensa
   | 'shop'
@@ -243,25 +241,19 @@ export type RunStatus =
   | 'lost';
 
 export interface Play {
-  /** Cartas jogadas, na ordem em que foram escolhidas (a primeira lidera o exercício). */
+  /** Cartas jogadas, na ordem em que foram escolhidas (a primeira lidera a pergunta). */
   uids: string[];
-  exerciseId: string;
-  failedRuns: number;
-  failedSubmissions: number;
-  hintLevel: number;
-  solutionViewed: boolean;
-  runsUsed: number;
-  draft: string | null;
+  questionId: string;
+  /** Alternativas já tentadas e erradas (cada uma tira precisão da mão). */
+  wrong: number[];
 }
 
 export interface HandResult {
   uids: string[];
-  exerciseId: string;
+  questionId: string;
   score: HandScore;
-  /** O jogador desistiu da mão: pontuação zero. */
-  forfeit: boolean;
-  /** Código entregue, para mostrar o que pontuou. */
-  code: string;
+  /** Respostas erradas antes de acertar. */
+  wrongAnswers: number;
 }
 
 export interface Round {
@@ -307,7 +299,7 @@ export interface BlindHistory {
 }
 
 export interface RunState {
-  version: 3;
+  version: 4;
   id: string;
   seed: number;
   step: number;
@@ -320,7 +312,7 @@ export interface RunState {
   deck: DeckCard[];
   jokers: string[];
   handLevels: Partial<Record<HandRankId, number>>;
-  usedExercises: string[];
+  usedQuestions: string[];
   /** Maior pontuação de uma mão nesta run. */
   bestHand: number;
   score: number;
@@ -393,7 +385,7 @@ export function createRun(packId: string, seed: number, profile: Profile): Resul
     for (const cardId of pack.cards) deck.push({ uid: `d${deck.length}`, cardId, upgrade: 0 });
   }
   return ok({
-    version: 3,
+    version: 4,
     id: `run-${seed.toString(36)}`,
     seed: seed >>> 0,
     step: 0,
@@ -406,7 +398,7 @@ export function createRun(packId: string, seed: number, profile: Profile): Resul
     deck,
     jokers: [],
     handLevels: {},
-    usedExercises: [],
+    usedQuestions: [],
     bestHand: 0,
     score: 0,
     xpEarned: 0,
@@ -517,8 +509,8 @@ export function canPlay(state: RunState, uids: readonly string[]): string | null
   return inHand(round, uids);
 }
 
-/** Exercício da mão: o conceito da 1ª carta escolhida decide o tema; mãos grandes pedem desafios maiores. */
-export function pickExercise(
+/** Pergunta da mão: o conceito da 1ª carta escolhida decide o tema; mãos grandes puxam as difíceis. */
+export function pickQuestion(
   state: RunState,
   uids: readonly string[],
   rng: Rng,
@@ -527,140 +519,94 @@ export function pickExercise(
   const def = currentBlind(state);
   if (def.forcedFirst && round.handsPlayed === 0) return { id: def.forcedFirst, forced: true };
   const lead = deckEntry(state, uids[0] as string).cardId;
-  const pool = exercisePool(lead, uids.length >= BIG_HAND);
-  const fresh = pool.filter((exercise) => !state.usedExercises.includes(exercise.id));
+  const pool = questionPool(lead, uids.length >= BIG_HAND);
+  const fresh = pool.filter((question) => !state.usedQuestions.includes(question.id));
   const choices = fresh.length > 0 ? fresh : pool;
-  const exercise = choices[Math.floor(rng() * choices.length)];
-  if (!exercise) throw new Error(`Sem exercício para ${lead}`);
-  return { id: exercise.id, forced: false };
+  const question = choices[Math.floor(rng() * choices.length)];
+  if (!question) throw new Error(`Sem pergunta para ${lead}`);
+  return { id: question.id, forced: false };
 }
 
 export function playHand(state: RunState, uids: readonly string[]): Result<RunState> {
   const reason = canPlay(state, uids);
   if (reason) return fail(reason);
   const round = state.round as Round;
-  const picked = pickExercise(state, uids, rngFor(state));
+  const picked = pickQuestion(state, uids, rngFor(state));
   return ok({
     ...state,
     step: state.step + 1,
-    status: 'coding',
-    usedExercises: state.usedExercises.includes(picked.id)
-      ? state.usedExercises
-      : [...state.usedExercises, picked.id],
+    status: 'quiz',
+    usedQuestions: state.usedQuestions.includes(picked.id)
+      ? state.usedQuestions
+      : [...state.usedQuestions, picked.id],
     round: {
       ...round,
       hand: round.hand.filter((uid) => !uids.includes(uid)),
-      play: {
-        uids: [...uids],
-        exerciseId: picked.id,
-        failedRuns: 0,
-        failedSubmissions: 0,
-        hintLevel: 0,
-        solutionViewed: false,
-        runsUsed: 0,
-        draft: null,
-      },
+      play: { uids: [...uids], questionId: picked.id, wrong: [] },
     },
   });
 }
 
-/* --------------------------------------------------- durante o exercício */
-
-function patchPlay(state: RunState, patch: Partial<Play>): RunState {
-  const round = state.round;
-  if (!round?.play) return state;
-  return { ...state, round: { ...round, play: { ...round.play, ...patch } } };
-}
-
-export function saveDraft(state: RunState, draft: string): RunState {
-  return patchPlay(state, { draft });
-}
-
-export function registerRun(state: RunState): RunState {
-  const play = state.round?.play;
-  return play ? patchPlay(state, { runsUsed: play.runsUsed + 1 }) : state;
-}
-
-export function registerFailure(state: RunState, kind: 'run' | 'submit'): RunState {
-  const play = state.round?.play;
-  if (!play) return state;
-  return patchPlay(state, {
-    failedRuns: play.failedRuns + 1,
-    failedSubmissions: play.failedSubmissions + (kind === 'submit' ? 1 : 0),
-  });
-}
-
-export function requestHint(state: RunState): Result<RunState> {
-  const play = state.round?.play;
-  if (state.status !== 'coding' || !play) return fail('Nenhum exercício em andamento.');
-  const exercise = getExercise(play.exerciseId);
-  const blocked = hintBlockedReason(exercise, play.hintLevel, play.failedRuns);
-  if (blocked) return fail(blocked);
-  const level = nextHintLevel(exercise, play.hintLevel) as number;
-  return ok(
-    patchPlay(state, { hintLevel: level, solutionViewed: play.solutionViewed || level === 5 }),
-  );
-}
+/* ------------------------------------------------ durante a pergunta */
 
 /** Conta a mão no placar e deixa a pontuação na tela. */
-function settleHand(state: RunState, code: string, forfeit: boolean): RunState {
+function settleHand(state: RunState): RunState {
   const round = state.round as Round;
   const play = round.play as Play;
-  const exercise = getExercise(play.exerciseId);
+  const question = getQuestion(play.questionId);
   const played = play.uids.map((uid) => deckEntry(state, uid));
-  const level = (rank: HandRankId) => handLevel(state, rank);
-  const preview = previewPlay(played, exercise.concepts);
+  const preview = previewPlay(played, [question.card]);
   const score = scoreHand({
     played,
-    concepts: exercise.concepts,
+    concepts: [question.card],
     jokers: state.jokers,
-    code,
-    firstTry: play.failedSubmissions === 0,
-    failedSubmissions: play.failedSubmissions,
-    hintsUsed: scoredHints(play.hintLevel),
-    solutionViewed: play.solutionViewed,
-    handLevel: level(preview.rank.id),
+    failedAnswers: play.wrong.length,
+    handLevel: handLevel(state, preview.rank.id),
     debuffed: (card) => isDebuffed(state, card),
   });
-  const total = forfeit ? 0 : score.total;
-  const roundScore = round.roundScore + total;
+  const total = score.total;
   return {
     ...state,
     step: state.step + 1,
     status: 'scored',
     score: state.score + total,
     bestHand: Math.max(state.bestHand, total),
-    xpEarned: state.xpEarned + (forfeit ? 0 : 10),
+    xpEarned: state.xpEarned + 10,
     round: {
       ...round,
-      roundScore,
+      roundScore: round.roundScore + total,
       handsLeft: round.handsLeft - 1,
       handsPlayed: round.handsPlayed + 1,
       play: null,
       discardPile: [...round.discardPile, ...play.uids],
       last: {
         uids: play.uids,
-        exerciseId: play.exerciseId,
-        score: forfeit ? { ...score, total: 0 } : score,
-        forfeit,
-        code,
+        questionId: play.questionId,
+        score,
+        wrongAnswers: play.wrong.length,
       },
     },
   };
 }
 
-/** O código passou em todos os testes: a mão pontua. */
-export function submitHand(state: RunState, code: string): Result<RunState> {
-  if (state.status !== 'coding' || !state.round?.play)
-    return fail('Nenhum exercício em andamento.');
-  return ok(settleHand(state, code, false));
-}
-
-/** Desistir do exercício: a mão é gasta e não pontua. */
-export function forfeitHand(state: RunState): Result<RunState> {
-  if (state.status !== 'coding' || !state.round?.play)
-    return fail('Nenhum exercício em andamento.');
-  return ok(settleHand(state, state.round.play.draft ?? '', true));
+/**
+ * Responde a pergunta da mão. Acertou: a mão pontua. Errou: a alternativa some e a precisão cai
+ * (nunca trava: a resposta certa sempre fica disponível).
+ */
+export function answerQuestion(state: RunState, option: number): Result<RunState> {
+  const play = state.round?.play;
+  if (state.status !== 'quiz' || !state.round || !play)
+    return fail('Nenhuma pergunta em andamento.');
+  const question = getQuestion(play.questionId);
+  if (!Number.isInteger(option) || option < 0 || option >= question.options.length) {
+    return fail('Essa alternativa não existe.');
+  }
+  if (play.wrong.includes(option)) return fail('Você já tentou essa alternativa.');
+  if (option === question.answer) return ok(settleHand(state));
+  return ok({
+    ...state,
+    round: { ...state.round, play: { ...play, wrong: [...play.wrong, option] } },
+  });
 }
 
 /* ------------------------------------------------- depois da pontuação */

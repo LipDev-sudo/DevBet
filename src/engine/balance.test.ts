@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getExercise } from '@/content/exercises';
+import { getQuestion } from '@/content/quiz';
 import {
   ANTES,
+  answerQuestion,
   buyItem,
   continueAfterScore,
   createRun,
@@ -15,7 +16,6 @@ import {
   rerollShop,
   startBlind,
   STARTER_PACKS,
-  submitHand,
   type Result,
   type RunState,
 } from './blind';
@@ -63,7 +63,7 @@ function chooseCards(run: RunState, policy: Policy): string[] {
   return best;
 }
 
-/** Joga uma run inteira com um jogador perfeito no código (sempre acerta de primeira) e compras simples. */
+/** Joga uma run inteira com um jogador perfeito (sempre acerta a pergunta de primeira) e compras simples. */
 function simulate(seed: number, policy: Policy, pack = 'logica') {
   let run = unwrap(createRun(pack, seed, profile));
   let guard = 0;
@@ -76,9 +76,9 @@ function simulate(seed: number, policy: Policy, pack = 'logica') {
         run = unwrap(playHand(run, chooseCards(run, policy)));
         break;
       }
-      case 'coding': {
-        const exercise = getExercise(run.round!.play!.exerciseId);
-        run = unwrap(submitHand(run, exercise.solution.code));
+      case 'quiz': {
+        const question = getQuestion(run.round!.play!.questionId);
+        run = unwrap(answerQuestion(run, question.answer));
         break;
       }
       case 'scored':
@@ -122,7 +122,7 @@ function simulate(seed: number, policy: Policy, pack = 'logica') {
 
 const rank = (kind: string) => (kind === 'joker' ? 0 : kind === 'hand' ? 1 : 2);
 
-describe('balanceamento do loop (jogador que acerta o código de primeira)', () => {
+describe('balanceamento do loop (jogador que acerta a pergunta de primeira)', () => {
   it('um jogador que monta mãos fortes vence a maioria das runs, e as blinds crescem', () => {
     const results = Array.from({ length: 60 }, (_, i) => simulate(1000 + i, 'best'));
     const wins = results.filter((r) => r.status === 'won').length;

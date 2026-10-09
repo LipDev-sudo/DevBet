@@ -5,16 +5,15 @@
  */
 
 export type LessonId =
-  'blind' | 'hand' | 'code' | 'deliver' | 'score' | 'discard' | 'cleared' | 'shop' | 'boss';
+  'blind' | 'hand' | 'quiz' | 'score' | 'discard' | 'cleared' | 'shop' | 'boss';
 
 /** O que o jogador (ou o jogo) fez de verdade. Cada lição declara quais eventos a concluem. */
 export type TutorialEventKind =
   | 'ack' // "Entendi" numa lição só informativa
   | 'started' // começou uma blind
-  | 'played' // jogou uma mão (abre o exercício)
+  | 'played' // jogou uma mão (abre a pergunta)
   | 'discarded' // descartou cartas
-  | 'executed' // o executor Python devolveu um relatório de Executar
-  | 'scored' // entregou (ou desistiu) e a mão pontuou
+  | 'answered' // acertou a pergunta e a mão pontuou
   | 'continued' // seguiu depois do placar
   | 'cashed' // recolheu a recompensa da blind
   | 'bought' // comprou algo na loja
@@ -29,21 +28,18 @@ export interface TutorialEvent {
 export interface TutorialState {
   /** Lições concluídas: não voltam a aparecer, nem depois de um reload. */
   done: LessonId[];
-  /** Já fez uma execução real de código. */
-  executed: boolean;
   /** Já comprou algo na loja. */
   bought: boolean;
 }
 
 export function initialTutorial(): TutorialState {
-  return { done: [], executed: false, bought: false };
+  return { done: [], bought: false };
 }
 
 const LESSON_IDS: readonly LessonId[] = [
   'blind',
   'hand',
-  'code',
-  'deliver',
+  'quiz',
   'score',
   'discard',
   'cleared',
@@ -60,7 +56,6 @@ export function parseTutorial(raw: unknown): TutorialState | null {
     : [];
   return {
     done: [...new Set(done)],
-    executed: value.executed === true,
     bought: value.bought === true,
   };
 }

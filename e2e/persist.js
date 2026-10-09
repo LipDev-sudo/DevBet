@@ -14,11 +14,8 @@ const snap = (page) =>
     money: (document.querySelector('header dd')?.innerText || '').trim(),
     hands: (document.body.innerText.match(/MÃOS\s*(\d)/i) || [])[1] || null,
     discards: (document.body.innerText.match(/DESCARTES\s*(\d)/i) || [])[1] || null,
-    runs: (document.body.innerText.match(/Execuções (\d+)\/60/) || [])[1] || null,
     result:
-      /BLIND VENCIDA|MÃO DESISTIDA|HIGH CARD|PAIR|FLUSH|STRAIGHT/.exec(
-        document.body.innerText,
-      )?.[0] || null,
+      /BLIND VENCIDA|HIGH CARD|PAIR|FLUSH|STRAIGHT/.exec(document.body.innerText)?.[0] || null,
     ended: /RUN ABANDONADA/.test(document.body.innerText),
   }));
 const reloadFast = async (page) => {
@@ -58,23 +55,22 @@ const reloadFast = async (page) => {
       `Descartes na tela iguais (${afterDiscard.discards})`,
     );
 
-    // jogar mão: abre o exercício, e Executar conta
+    // jogar mão: abre a pergunta, e uma resposta errada conta
     await f.playCards(page, 2);
-    const title = await f.exerciseTitle(page);
-    await f.setCode(page, 'def x():\n    pass');
-    await page.getByRole('button', { name: 'Executar' }).click();
-    await page.waitForFunction(() => /Execuções 1\/60/.test(document.body.innerText));
+    const id = await f.questionId(page);
+    await f.answerWrong(page, 1);
+    await page.waitForFunction(() => /Precisão atual/.test(document.body.innerText));
     await reloadFast(page);
     run = await f.getRun(page);
-    check(run.status === 'coding' && run.round.play.runsUsed === 1, 'Executar: contador sobrevive');
-    check((await f.exerciseTitle(page)) === title, 'O mesmo exercício volta após o reload');
+    check(run.status === 'quiz' && run.round.play.wrong.length === 1, 'Resposta errada sobrevive');
+    check((await f.questionId(page)) === id, 'A mesma pergunta volta após o reload');
+    check(
+      (await page.locator('[data-tutorial="quiz"] ul button[aria-disabled="true"]').count()) === 1,
+      'A alternativa errada continua riscada após o reload',
+    );
 
-    // entregar: o resultado sobrevive
-    await f.setCode(page, f.solutionFor(title));
-    await page.getByRole('button', { name: 'Entregar' }).click();
-    await page
-      .getByRole('button', { name: /Continuar|Blind vencida|Suas mãos acabaram/ })
-      .waitFor({ timeout: 30000 });
+    // acertar: o resultado sobrevive
+    await f.solveAndDeliver(page);
     const score = (await snap(page)).result;
     await reloadFast(page);
     run = await f.getRun(page);

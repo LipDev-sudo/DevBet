@@ -14,7 +14,7 @@ export function StartScreen() {
   const { state, dispatch } = useGame();
   const { configured } = useAccount();
   const profile = state.profile;
-  // Na primeira run, o Dealer recomenda o pacote com os conceitos do primeiro desafio.
+  // Na primeira run, o Dealer recomenda o pacote com os conceitos da primeira mão.
   const [packId, setPackId] = useState<string>(
     profile.tutorialCompleted ? (STARTER_PACKS[0]?.id ?? 'logica') : TUTORIAL_PACK_ID,
   );

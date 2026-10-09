@@ -1,7 +1,6 @@
-// Fluxo completo do loop de blinds (estilo Balatro) no navegador: blind → mão → exercício → placar → loja → boss.
-const { launch, loadSolutions, BASE, OUT } = require('./lib.cjs');
-const sols = loadSolutions();
-const byTitle = Object.fromEntries(Object.values(sols).map((v) => [v.title, v.solution]));
+// Fluxo completo do loop de blinds (estilo Balatro) no navegador: blind → mão → pergunta → placar → loja → boss.
+const { launch, BASE, OUT } = require('./lib.cjs');
+const { solveAndDeliver } = require('./flow.cjs');
 const log = console.log;
 const errors = [];
 const problems = [];
@@ -11,12 +10,6 @@ const check = (ok, msg) => {
   if (!ok) problems.push(msg);
 };
 
-const setCode = async (page, code) => {
-  await page.waitForFunction(() => window.monaco && window.monaco.editor.getEditors().length > 0);
-  await page.waitForTimeout(1500);
-  await page.evaluate((c) => window.monaco.editor.getEditors()[0].setValue(c), code);
-  await page.waitForTimeout(300);
-};
 const getRun = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem('devbet:run:v1') || 'null'));
 const roundScore = async (page) => (await getRun(page))?.round?.roundScore ?? 0;
@@ -27,21 +20,6 @@ async function playCards(page, n) {
   for (let i = 0; i < n; i++) await cards.nth(i).click();
   await page.getByRole('button', { name: 'Jogar mão' }).click();
   await page.waitForTimeout(1200);
-}
-
-/** Resolve o exercício aberto com a solução oficial e entrega. */
-async function solveAndDeliver(page) {
-  const title = (await page.locator('h1').first().innerText()).trim();
-  const code = byTitle[title];
-  if (!code) throw new Error('sem solução para ' + title);
-  await setCode(page, code);
-  await page.getByRole('button', { name: 'Executar' }).click();
-  await page.waitForTimeout(4000);
-  await page.getByRole('button', { name: 'Entregar' }).click();
-  await page
-    .getByRole('button', { name: /Continuar|Blind vencida|Suas mãos acabaram/ })
-    .waitFor({ timeout: 30000 });
-  return title;
 }
 
 (async () => {
@@ -81,18 +59,18 @@ async function solveAndDeliver(page) {
   await page.goto(BASE + '/play', { waitUntil: 'load' });
   await page.getByText('Sentar à mesa').click();
   await page.waitForTimeout(600);
-  check(/600/.test(await page.locator('main').innerText()), 'Blind 1 mostra a meta 600');
+  check(/900/.test(await page.locator('main').innerText()), 'Blind 1 mostra a meta 900');
   await shot('1-blind');
   await page.getByRole('button', { name: 'Jogar blind' }).click();
   await page.waitForTimeout(600);
   check((await page.locator('[data-tutorial="hand"] button').count()) === 8, 'A mão tem 8 cartas');
   await shot('2-round');
 
-  // Mão 1: 3 cartas → exercício → entregar → placar
+  // Mão 1: 3 cartas → pergunta → responder → placar
   await playCards(page, 3);
-  await shot('3-coding');
+  await shot('3-quiz');
   const first = await solveAndDeliver(page);
-  await page.waitForTimeout(3500);
+  await page.waitForTimeout(500);
   await shot('4-score');
   const afterFirst = await getRun(page);
   check(
@@ -115,7 +93,7 @@ async function solveAndDeliver(page) {
     if ((await getRun(page)).status !== 'round') break;
     await playCards(page, 5);
     await solveAndDeliver(page);
-    await page.waitForTimeout(3500);
+    await page.waitForTimeout(500);
   }
   const state = await getRun(page);
   if (state.status === 'scored') {
@@ -125,7 +103,7 @@ async function solveAndDeliver(page) {
   const final = await getRun(page);
   check(
     final.status === 'cleared',
-    `A blind 1 foi vencida (${final.round.roundScore}/600 em ${final.round.handsPlayed} mãos)`,
+    `A blind 1 foi vencida (${final.round.roundScore}/900 em ${final.round.handsPlayed} mãos)`,
   );
   await shot('5-cleared');
   const payout = (await getRun(page)).round?.payout;

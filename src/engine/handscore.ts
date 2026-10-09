@@ -21,12 +21,9 @@ export const LEVEL_MULT = 1;
 /** O efeito das cartas é pequeno (0.1…0.5); aqui vira o multiplicador "inteiro" do placar. */
 export const CARD_MULT_SCALE = 4;
 
-export const FAIL_PENALTY = 0.1;
-export const HINT_PENALTY = 0.1;
-export const SOLUTION_FACTOR = 0.4;
+/** Cada resposta errada da pergunta da mão tira isto da precisão (que nunca cai abaixo do mínimo). */
+export const FAIL_PENALTY = 0.15;
 export const MIN_PRECISION = 0.4;
-/** Execuções ou entregas com falha necessárias para liberar a solução explicada. */
-export const FAILURES_FOR_SOLUTION = 4;
 
 export type StepKind = 'rank' | 'card' | 'combo' | 'joker' | 'precision';
 
@@ -59,14 +56,11 @@ export interface HandScore {
 export interface HandScoreInput {
   /** Cartas jogadas, na ordem em que foram escolhidas. */
   played: readonly DeckCard[];
-  /** Conceitos que o exercício usa: as cartas desses conceitos valem o dobro. */
+  /** Conceitos da pergunta: as cartas desses conceitos valem o dobro. */
   concepts: readonly CardId[];
   jokers: readonly string[];
-  code: string;
-  firstTry: boolean;
-  failedSubmissions: number;
-  hintsUsed: number;
-  solutionViewed: boolean;
+  /** Respostas erradas antes de acertar a pergunta (0 = acertou de primeira). */
+  failedAnswers: number;
   /** Nível da mão jogada (1 = padrão). */
   handLevel?: number;
   /** Cartas que a regra do boss anula. */
@@ -75,17 +69,11 @@ export interface HandScoreInput {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-export function precisionFactor(
-  failedSubmissions: number,
-  hintsUsed: number,
-  solutionViewed: boolean,
-): number {
-  const raw = 1 - FAIL_PENALTY * failedSubmissions - HINT_PENALTY * hintsUsed;
-  const clamped = Math.max(MIN_PRECISION, raw);
-  return Math.round((solutionViewed ? clamped * SOLUTION_FACTOR : clamped) * 100) / 100;
+export function precisionFactor(failedAnswers: number): number {
+  return Math.round(Math.max(MIN_PRECISION, 1 - FAIL_PENALTY * failedAnswers) * 100) / 100;
 }
 
-/** Mão que vai ser jogada, ainda sem código: o que o jogador vê ao escolher as cartas. */
+/** Mão que vai ser jogada, antes da pergunta: o que o jogador vê ao escolher as cartas. */
 export function previewPlay(
   played: readonly DeckCard[],
   concepts: readonly CardId[],
@@ -166,12 +154,14 @@ export function scoreHand(input: HandScoreInput): HandScore {
     });
   }
 
+  const live = input.played.filter((card) => !input.debuffed?.(card));
   const ctx: JokerContext = {
-    code: input.code,
-    firstTry: input.firstTry,
+    firstTry: input.failedAnswers === 0,
     handRankId: rank.id,
     comboCount: combos.length,
     playedCount: input.played.length,
+    cardIds: live.map((card) => card.cardId),
+    categories: [...new Set(live.map((card) => getCard(card.cardId).category))],
   };
   for (const id of input.jokers) {
     const joker = getJoker(id);
@@ -189,7 +179,7 @@ export function scoreHand(input: HandScoreInput): HandScore {
     }
   }
 
-  const precision = precisionFactor(input.failedSubmissions, input.hintsUsed, input.solutionViewed);
+  const precision = precisionFactor(input.failedAnswers);
   if (precision < 1) {
     steps.push({
       kind: 'precision',

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getQuestion } from '@/content/quiz';
 import { createProfile } from '@/engine/progression';
 import { currentBlind, type RunState } from '@/engine/blind';
 import { gameReducer, initialGameState, type GameAction, type GameState } from './game-state';
@@ -19,6 +20,12 @@ function started(profile = done): GameState {
 
 const run = (state: GameState): RunState => state.run!;
 
+/** Responde a pergunta aberta com a alternativa certa. */
+const correct = (state: GameState): GameAction => ({
+  type: 'answer',
+  option: getQuestion(run(state).round!.play!.questionId).answer,
+});
+
 describe('reducer do jogo', () => {
   it('a primeira run usa sempre o baralho da Tutorial Run; depois vale a escolha', () => {
     const first = started(createProfile());
@@ -29,13 +36,13 @@ describe('reducer do jogo', () => {
     expect(run(started()).tutorial).toBeNull();
   });
 
-  it('segue o fluxo: começar blind, jogar, entregar e continuar', () => {
+  it('segue o fluxo: começar blind, jogar, responder e continuar', () => {
     let s = play(started(), { type: 'start-blind' });
     expect(run(s).status).toBe('round');
     const lead = run(s).round!.hand[0]!;
     s = play(s, { type: 'play', uids: [lead] });
-    expect(run(s).status).toBe('coding');
-    s = play(s, { type: 'submit', code: 'return 1' });
+    expect(run(s).status).toBe('quiz');
+    s = play(s, correct(s));
     expect(run(s).status).toBe('scored');
     expect(run(s).round!.roundScore).toBeGreaterThan(0);
     s = play(s, { type: 'continue' });
@@ -50,12 +57,17 @@ describe('reducer do jogo', () => {
     expect(play(blocked, { type: 'clear-notice' }).notice).toBeNull();
   });
 
-  it('desistir da mão gasta a mão e vale zero', () => {
+  it('errar a pergunta não pontua e some com a alternativa; a rejeitada vira aviso', () => {
     let s = play(started(), { type: 'start-blind' });
-    s = play(s, { type: 'play', uids: [run(s).round!.hand[0]!] }, { type: 'forfeit' });
-    expect(run(s).status).toBe('scored');
-    expect(run(s).round!.last!.forfeit).toBe(true);
-    expect(run(s).round!.roundScore).toBe(0);
+    s = play(s, { type: 'play', uids: [run(s).round!.hand[0]!] });
+    const question = getQuestion(run(s).round!.play!.questionId);
+    const wrong = question.options.findIndex((_, i) => i !== question.answer);
+    s = play(s, { type: 'answer', option: wrong });
+    expect(run(s).status).toBe('quiz');
+    expect(run(s).round!.play!.wrong).toEqual([wrong]);
+    const again = play(s, { type: 'answer', option: wrong });
+    expect(again.notice?.text).toMatch(/já tentou/);
+    expect(run(again)).toBe(run(s));
   });
 
   it('abandonar encerra a run, conta no perfil e a run encerrada fica imutável', () => {
@@ -72,13 +84,10 @@ describe('reducer do jogo', () => {
 
   it('perder por falta de mãos encerra a run uma vez e soma o XP ao perfil', () => {
     let s = play(started(), { type: 'start-blind' });
+    s = { ...s, run: { ...run(s), round: { ...run(s).round!, target: 999999 } } };
     for (let i = 0; i < 4 && run(s).status !== 'lost'; i++) {
-      s = play(
-        s,
-        { type: 'play', uids: [run(s).round!.hand[0]!] },
-        { type: 'forfeit' },
-        { type: 'continue' },
-      );
+      s = play(s, { type: 'play', uids: [run(s).round!.hand[0]!] });
+      s = play(s, correct(s), { type: 'continue' });
     }
     expect(run(s).status).toBe('lost');
     expect(s.profile.runsPlayed).toBe(1);

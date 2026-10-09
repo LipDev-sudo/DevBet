@@ -92,17 +92,17 @@ const text = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/
     await ctx.close();
   }
 
-  // ---- derrota: 4 mãos desistidas
+  // ---- derrota: 4 mãos sem bater a meta
   {
     const { ctx, page, errors } = await f.open(browser, { mobile: MOBILE });
     all.push(errors);
     await f.startRun(page);
     await f.startBlind(page);
+    await f.forge(page, 'r.round.target = 999999;');
     for (let i = 0; i < 4; i++) {
       await f.playCards(page, 1);
-      await page.getByRole('button', { name: 'Desistir' }).click();
-      await page.getByRole('dialog').getByRole('button', { name: 'Desistir' }).click();
-      await page.waitForTimeout(800);
+      await f.solveAndDeliver(page);
+      await page.waitForTimeout(500);
       await f.continueAfterScore(page);
     }
     check(/BUST/.test(await text(page)), 'Derrota: a tela final mostra BUST');
@@ -127,8 +127,8 @@ const text = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/
     await f.forge(page, 'r.round.target = 1;');
     await f.playCards(page, 1);
     check(
-      (await f.exerciseTitle(page)) === 'THE INFINITE LOOP',
-      'Boss final: a 1ª mão é THE INFINITE LOOP',
+      (await f.questionId(page)) === 'q-boss-infinite-loop',
+      'Boss final: a 1ª mão é a pergunta THE INFINITE LOOP',
     );
     await f.solveAndDeliver(page);
     await f.continueAfterScore(page);

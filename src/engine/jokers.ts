@@ -1,9 +1,9 @@
-import type { Rarity } from './types';
+import type { CardId, CategoryId, Rarity } from './types';
 
 /**
- * Jokers do DEVBet são IDIOMAS de Python: cada um premia um jeito de escrever código, só quando o código
- * ENVIADO realmente o usa. Assim a loja ensina (cada joker explica o idioma e mostra um exemplo) e o placar
- * recompensa quem escreve bem, não só quem acerta.
+ * Jokers do DEVBet são IDIOMAS de Python: cada um explica um jeito de escrever código bom e dispara quando a
+ * sua mão tem as cartas daquele assunto. Como no pôquer, o jogador monta a mão (e a ordem dos jokers) para
+ * fazer tudo disparar junto.
  */
 export type JokerEffect =
   | { kind: 'chips'; value: number }
@@ -11,13 +11,14 @@ export type JokerEffect =
   | { kind: 'xmult'; value: number };
 
 export interface JokerContext {
-  /** Código que o jogador entregou nesta mão. */
-  code: string;
-  /** Primeira entrega da mão passou nos testes. */
+  /** Acertou a pergunta da mão de primeira. */
   firstTry: boolean;
   handRankId: string;
   comboCount: number;
   playedCount: number;
+  /** Conceitos das cartas jogadas que pontuam (as anuladas pelo boss ficam de fora). */
+  cardIds: readonly CardId[];
+  categories: readonly CategoryId[];
 }
 
 export interface JokerDef {
@@ -32,98 +33,13 @@ export interface JokerDef {
   when: string;
   /** O que o idioma é e por que ele é bom. */
   lesson: string;
-  /** Exemplo de código real que dispara o joker. */
+  /** Exemplo de código real do idioma. */
   snippet: string;
-  /** Quantas vezes dispara (0 = não dispara). Sempre determinístico a partir do código. */
+  /** Quantas vezes dispara (0 = não dispara). Sempre determinístico a partir da mão. */
   triggers: (ctx: JokerContext) => number;
 }
 
-/** Remove comentários e strings de uma linha para que `#` ou `for` dentro de texto não enganem os detectores. */
-export function stripLine(line: string): string {
-  let out = '';
-  let quote: string | null = null;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line.charAt(i);
-    if (quote) {
-      if (ch === '\\') i++;
-      else if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      quote = ch;
-      out += ch + ch;
-      continue;
-    }
-    if (ch === '#') break;
-    out += ch;
-  }
-  return out;
-}
-
-/** Linhas de código sem comentários, strings e linhas vazias. */
-export function codeLines(code: string): string[] {
-  return code
-    .split('\n')
-    .map(stripLine)
-    .filter((line) => line.trim() !== '');
-}
-
-const isCode = (code: string) => codeLines(code).join('\n');
-
-/** `[x * 2 for x in lista]`, `{k: v for ...}` e geradores entre parênteses. */
-export function hasComprehension(code: string): boolean {
-  return /[[({][^\n]*\bfor\b[^\n]*\bin\b[^\n]*[\])}]/.test(isCode(code));
-}
-
-/** `a if cond else b` usado como expressão (não a instrução `if`). */
-export function hasTernary(code: string): boolean {
-  return codeLines(code).some((line) => {
-    const trimmed = line.trim();
-    if (/^(if|elif|else)\b/.test(trimmed) || trimmed.endsWith(':')) return false;
-    return /\S\s+if\s+.+\s+else\s+\S/.test(trimmed);
-  });
-}
-
-export function hasFString(code: string): boolean {
-  return /(^|[^\w])[fF]["']/.test(isCode(code));
-}
-
-export function hasAnyAll(code: string): boolean {
-  return /\b(any|all)\(/.test(isCode(code));
-}
-
-const BUILTINS = [
-  'sum',
-  'len',
-  'max',
-  'min',
-  'sorted',
-  'enumerate',
-  'zip',
-  'range',
-  'abs',
-  'round',
-];
-
-/** Quantos builtins úteis DIFERENTES o código usa. */
-export function builtinCount(code: string): number {
-  const text = isCode(code);
-  return BUILTINS.filter((name) => new RegExp(`\\b${name}\\(`).test(text)).length;
-}
-
-export function commentCount(code: string): number {
-  return code.split('\n').filter((line) => /^\s*#\s*\S/.test(line) || /\S\s+#\s*\S/.test(line))
-    .length;
-}
-
-export function hasDocstring(code: string): boolean {
-  return /("""|''')[\s\S]*?\1/.test(code);
-}
-
-/** Linhas de lógica (sem comentários nem a linha `def`). */
-export function bodyLineCount(code: string): number {
-  return codeLines(code).filter((line) => !/^\s*def\s/.test(line)).length;
-}
+const has = (ctx: JokerContext, ...ids: CardId[]) => ids.every((id) => ctx.cardIds.includes(id));
 
 export const JOKERS: readonly JokerDef[] = [
   {
@@ -133,11 +49,11 @@ export const JOKERS: readonly JokerDef[] = [
     rarity: 'rare',
     price: 8,
     effect: { kind: 'mult', value: 6 },
-    when: 'Seu código usa uma list comprehension.',
+    when: 'Você jogou LIST e FOR juntas.',
     lesson:
       'Uma comprehension cria uma lista a partir de outra em uma linha: percorrer, filtrar e transformar sem um loop longo.',
     snippet: 'dobros = [n * 2 for n in lista if n > 0]',
-    triggers: (ctx) => (hasComprehension(ctx.code) ? 1 : 0),
+    triggers: (ctx) => (has(ctx, 'list', 'for') ? 1 : 0),
   },
   {
     id: 'ternary',
@@ -146,11 +62,11 @@ export const JOKERS: readonly JokerDef[] = [
     rarity: 'common',
     price: 5,
     effect: { kind: 'mult', value: 4 },
-    when: 'Seu código usa o operador ternário.',
+    when: 'Você jogou uma carta CONDITION.',
     lesson:
       'O ternário escolhe entre dois valores numa expressão só. Bom para decisões curtas dentro de um return.',
     snippet: 'return "par" if n % 2 == 0 else "impar"',
-    triggers: (ctx) => (hasTernary(ctx.code) ? 1 : 0),
+    triggers: (ctx) => (has(ctx, 'condition') ? 1 : 0),
   },
   {
     id: 'fstring',
@@ -159,10 +75,10 @@ export const JOKERS: readonly JokerDef[] = [
     rarity: 'common',
     price: 4,
     effect: { kind: 'chips', value: 40 },
-    when: 'Seu código usa uma f-string.',
+    when: 'Você jogou uma carta VARIABLE.',
     lesson: 'f-strings montam texto com variáveis dentro de chaves: mais claro que juntar com `+`.',
     snippet: 'return f"Olá, {nome}!"',
-    triggers: (ctx) => (hasFString(ctx.code) ? 1 : 0),
+    triggers: (ctx) => (has(ctx, 'variable') ? 1 : 0),
   },
   {
     id: 'any-all',
@@ -171,10 +87,10 @@ export const JOKERS: readonly JokerDef[] = [
     rarity: 'common',
     price: 6,
     effect: { kind: 'mult', value: 5 },
-    when: 'Seu código usa any() ou all().',
+    when: 'Você jogou uma carta BOOLEAN.',
     lesson: '`any` diz se ALGUM item cumpre a condição e `all` se TODOS cumprem, sem loop manual.',
     snippet: 'return all(n > 0 for n in lista)',
-    triggers: (ctx) => (hasAnyAll(ctx.code) ? 1 : 0),
+    triggers: (ctx) => (has(ctx, 'boolean') ? 1 : 0),
   },
   {
     id: 'stdlib',
@@ -183,11 +99,11 @@ export const JOKERS: readonly JokerDef[] = [
     rarity: 'common',
     price: 5,
     effect: { kind: 'chips', value: 25 },
-    when: 'Dispara 1× por builtin diferente que seu código usa (sum, len, max, min, sorted…).',
+    when: 'Dispara 1× por categoria diferente na sua mão.',
     lesson:
       'O Python já traz ferramentas prontas. Usar `sum` ou `max` é mais curto e menos sujeito a erro.',
     snippet: 'return max(lista)',
-    triggers: (ctx) => builtinCount(ctx.code),
+    triggers: (ctx) => ctx.categories.length,
   },
   {
     id: 'comments',
@@ -196,10 +112,10 @@ export const JOKERS: readonly JokerDef[] = [
     rarity: 'common',
     price: 4,
     effect: { kind: 'chips', value: 15 },
-    when: 'Dispara 1× por comentário (até 3).',
+    when: 'Dispara 1× por carta jogada (até 3).',
     lesson: 'Comentários explicam o PORQUÊ do código. Quem lê depois (você, inclusive) agradece.',
     snippet: '# soma de 1 até n\nsoma = 0',
-    triggers: (ctx) => Math.min(3, commentCount(ctx.code)),
+    triggers: (ctx) => Math.min(3, ctx.playedCount),
   },
   {
     id: 'docstring',
@@ -208,23 +124,23 @@ export const JOKERS: readonly JokerDef[] = [
     rarity: 'rare',
     price: 6,
     effect: { kind: 'mult', value: 4 },
-    when: 'Seu código tem uma docstring.',
+    when: 'Você jogou uma carta FUNCTION.',
     lesson:
       'A docstring descreve o que a função faz, bem no começo dela. Ferramentas e pessoas a leem.',
     snippet: 'def soma(a, b):\n    """Devolve a soma."""',
-    triggers: (ctx) => (hasDocstring(ctx.code) ? 1 : 0),
+    triggers: (ctx) => (has(ctx, 'function') ? 1 : 0),
   },
   {
     id: 'minimalist',
     name: 'MINIMALISTA',
-    tag: '≤ 3 linhas',
+    tag: '≤ 2 cartas',
     rarity: 'rare',
     price: 9,
     effect: { kind: 'xmult', value: 1.5 },
-    when: 'O corpo da sua função tem no máximo 3 linhas de código.',
+    when: 'Você jogou no máximo 2 cartas.',
     lesson: 'Código curto tem menos lugares para errar. Mas só vale se continuar legível!',
     snippet: 'def dobro(n):\n    return n * 2',
-    triggers: (ctx) => (bodyLineCount(ctx.code) > 0 && bodyLineCount(ctx.code) <= 3 ? 1 : 0),
+    triggers: (ctx) => (ctx.playedCount > 0 && ctx.playedCount <= 2 ? 1 : 0),
   },
   {
     id: 'clean-hand',
@@ -233,9 +149,9 @@ export const JOKERS: readonly JokerDef[] = [
     rarity: 'rare',
     price: 9,
     effect: { kind: 'xmult', value: 1.5 },
-    when: 'A primeira entrega da mão passou em todos os testes.',
-    lesson: 'Rodar o código com Executar antes de entregar é de graça. Teste cedo, entregue certo.',
-    snippet: '# Executar (de graça) até os testes ficarem verdes',
+    when: 'Você acertou a pergunta da mão de primeira.',
+    lesson: 'Pensar antes de agir poupa retrabalho. Teste a ideia na cabeça e acerte de primeira.',
+    snippet: '# pense, depois escreva',
     triggers: (ctx) => (ctx.firstTry ? 1 : 0),
   },
   {
@@ -272,7 +188,7 @@ export const JOKERS: readonly JokerDef[] = [
     price: 4,
     effect: { kind: 'mult', value: 3 },
     when: 'Você jogou 5 cartas.',
-    lesson: 'Mais cartas, exercício maior: um problema grande se resolve em passos pequenos.',
+    lesson: 'Mais cartas, pergunta mais difícil: um problema grande se resolve em passos pequenos.',
     snippet: '# divida o problema em funções menores',
     triggers: (ctx) => (ctx.playedCount >= 5 ? 1 : 0),
   },

@@ -39,7 +39,7 @@ const LID: Record<Mood, number> = {
 
 const MOOD_LABEL: Record<Mood, string> = {
   idle: 'observando você',
-  thinking: 'acompanhando seu código',
+  thinking: 'acompanhando sua resposta',
   success: 'aprovando',
   error: 'atento ao erro',
   serious: 'sério',

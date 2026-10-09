@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { PlayingCard } from '@/components/ui/PlayingCard';
-import { AREAS } from '@/content/areas';
-import { ALL_CHALLENGES } from '@/content/challenges';
+import { QUESTIONS } from '@/content/quiz';
 import { CARDS, getCard, RARITY_LABEL } from '@/engine/cards';
 import { COMBOS, comboLabel } from '@/engine/combos';
 import { HAND_RANKS } from '@/engine/hands';
@@ -79,8 +78,7 @@ export function CollectionView() {
           Combos de conceitos
         </h2>
         <p className="-mt-3 mb-5 text-xs text-ivory-dim">
-          Ativam quando você tem as duas cartas na mão e o desafio usa os dois conceitos. Cada combo
-          soma ao multiplicador.
+          Ativam quando você joga as duas cartas na mesma mão. Cada combo soma ao multiplicador.
         </p>
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {COMBOS.map((combo) => (
@@ -120,40 +118,6 @@ export function CollectionView() {
         </ul>
       </section>
 
-      <hr className="my-10 border-white/10" />
-
-      <section aria-labelledby="desafios-titulo">
-        <h2 id="desafios-titulo" className="table-label mb-5">
-          Desafios resolvidos
-        </h2>
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {AREAS.map((area) => {
-            const challenges = ALL_CHALLENGES.filter((c) => c.areaId === area.id);
-            return (
-              <li key={area.id} className="panel rounded-lg p-4">
-                <p className="font-display text-lg font-bold text-ivory">{area.name}</p>
-                <p className="text-xs text-ivory-dim">{area.subtitle}</p>
-                <ul className="mt-3 space-y-1.5 text-sm">
-                  {challenges.map((challenge) => {
-                    const record = profile.solved[challenge.id];
-                    return (
-                      <li key={challenge.id} className="flex justify-between gap-3">
-                        <span className={record ? 'text-ivory' : 'text-ivory-dim'}>
-                          {challenge.title}
-                        </span>
-                        <span className={record ? 'text-win' : 'text-ivory-dim/50'}>
-                          {record ? `✓ ${record.best}` : '—'}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
       <Modal
         open={selectedCard !== null}
         onClose={() => setSelected(null)}
@@ -172,11 +136,8 @@ export function CollectionView() {
               </pre>
               <p className="mt-4 text-xs leading-relaxed text-ivory-dim">
                 Efeito: +{selectedCard.chips} fichas e +{selectedCard.mult.toFixed(2)} de
-                multiplicador em qualquer mesa; o dobro quando o desafio usa este conceito (
-                {ALL_CHALLENGES.filter((c) => c.concepts.includes(selectedCard.id))
-                  .map((c) => c.title)
-                  .join(', ')}
-                ).
+                multiplicador em qualquer mão; o dobro quando a pergunta da mão é sobre este
+                conceito ({QUESTIONS.filter((q) => q.card === selectedCard.id).length} perguntas).
               </p>
             </div>
           </div>

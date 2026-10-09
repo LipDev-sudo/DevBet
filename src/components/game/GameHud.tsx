@@ -19,14 +19,17 @@ export function GameHud() {
   const nextUnlocks = CARDS.filter((card) => card.unlockLevel === xp.level + 1).map((c) => c.name);
 
   return (
-    <header className="wood relative z-20 border-x-0 border-t-0">
+    <header className="wood table-rail relative z-20 border-x-0 border-t-0">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-2.5 sm:px-6">
         <div className="hidden items-center gap-4 sm:flex">
           <Brand />
           <span className="table-label hidden border-l border-white/10 pl-4 lg:inline">
+            <span aria-hidden="true" className="text-gold">
+              ${' '}
+            </span>
             {run.status === 'shop'
-              ? 'Loja'
-              : `Ante ${run.ante + 1}/${ANTES.length} · ${currentBlind(run).name}`}
+              ? 'loja'
+              : `ante ${run.ante + 1}/${ANTES.length} · ${currentBlind(run).name}`}
           </span>
         </div>
         <dl className="flex flex-1 flex-wrap items-center justify-end gap-x-5 gap-y-1.5 sm:flex-none">

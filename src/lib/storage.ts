@@ -1,4 +1,4 @@
-import { hasExercise } from '@/content/exercises';
+import { getQuestion, hasQuestion } from '@/content/quiz';
 import { CARDS, LEGACY_CARD_IDS } from '@/engine/cards';
 import { createProfile, type Profile } from '@/engine/progression';
 import { ANTES, type RunState, type RunStatus } from '@/engine/blind';
@@ -26,7 +26,7 @@ export const STORAGE_KEYS = {
 const RUN_STATUSES: readonly RunStatus[] = [
   'blind',
   'round',
-  'coding',
+  'quiz',
   'scored',
   'cleared',
   'shop',
@@ -87,7 +87,7 @@ const strings = (value: unknown): string[] =>
 /** Aceita runs que o motor atual consegue retomar com segurança, inclusive as já encerradas (tela final). */
 export function parseRun(input: unknown): RunState | null {
   // Saves de versões anteriores (outro formato de jogo) não são retomáveis; o perfil é sempre preservado.
-  if (!isRecord(input) || input.version !== 3) return null;
+  if (!isRecord(input) || input.version !== 4) return null;
   if (typeof input.status !== 'string' || !RUN_STATUSES.includes(input.status as RunStatus)) {
     return null;
   }
@@ -116,16 +116,24 @@ export function parseRun(input: unknown): RunState | null {
     if (![...hand, ...drawPile, ...discardPile].every((uid) => uids.has(uid))) return null;
     const play = r.play;
     if (isRecord(play)) {
-      if (!hasExercise(String(play.exerciseId))) return null;
+      if (!hasQuestion(String(play.questionId))) return null;
       if (!strings(play.uids).every((uid) => uids.has(uid))) return null;
+      const options = getQuestion(String(play.questionId)).options.length;
+      const wrong = play.wrong;
+      if (
+        !Array.isArray(wrong) ||
+        !wrong.every((n) => Number.isInteger(n) && n >= 0 && n < options)
+      ) {
+        return null;
+      }
     }
     const last = r.last;
-    if (isRecord(last) && !hasExercise(String(last.exerciseId))) return null;
+    if (isRecord(last) && !hasQuestion(String(last.questionId))) return null;
     round = r as unknown as NonNullable<RunState['round']>;
   }
   const status = input.status as RunStatus;
-  if (['round', 'coding', 'scored', 'cleared'].includes(status) && !round) return null;
-  if (status === 'coding' && !round?.play) return null;
+  if (['round', 'quiz', 'scored', 'cleared'].includes(status) && !round) return null;
+  if (status === 'quiz' && !round?.play) return null;
   if (status === 'scored' && !round?.last) return null;
   if (status === 'shop' && !isRecord(input.shop)) return null;
 
@@ -136,7 +144,7 @@ export function parseRun(input: unknown): RunState | null {
     ...(input as unknown as RunState),
     deck,
     jokers: strings(input.jokers).filter(isJokerId),
-    usedExercises: strings(input.usedExercises).filter(hasExercise),
+    usedQuestions: strings(input.usedQuestions).filter(hasQuestion),
     handLevels: isRecord(input.handLevels) ? (input.handLevels as RunState['handLevels']) : {},
     history: history as RunState['history'],
     round,

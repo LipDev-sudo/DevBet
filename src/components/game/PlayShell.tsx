@@ -6,10 +6,10 @@ import { useGame } from './GameProvider';
 import { AbandonRun } from './AbandonRun';
 import { Notice } from './Notice';
 import { TutorialCoach } from './TutorialCoach';
-import { ChallengeScreen } from './screens/ChallengeScreen';
 import { EndScreen } from './screens/EndScreen';
 import { BlindScreen } from './screens/BlindScreen';
 import { ClearedScreen } from './screens/ClearedScreen';
+import { QuizScreen } from './screens/QuizScreen';
 import { RoundScreen } from './screens/RoundScreen';
 import { ScoreScreen } from './screens/ScoreScreen';
 import { ShopScreen } from './screens/ShopScreen';
@@ -41,8 +41,8 @@ export function PlayShell() {
     case 'round':
       screen = <RoundScreen />;
       break;
-    case 'coding':
-      screen = <ChallengeScreen />;
+    case 'quiz':
+      screen = <QuizScreen />;
       break;
     case 'scored':
       screen = <ScoreScreen />;
@@ -60,7 +60,7 @@ export function PlayShell() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="table-felt flex min-h-screen flex-col">
       <GameHud />
       <main id="conteudo" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
         <TutorialCoach />

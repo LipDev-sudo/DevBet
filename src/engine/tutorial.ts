@@ -1,12 +1,8 @@
-import { getExercise } from '@/content/exercises';
+import { getQuestion } from '@/content/quiz';
 import { COMBOS, comboLabel } from './combos';
 import type { Mood } from './dealer';
 import { BASE_DISCARDS, bossRule, currentBlind, handCards, type RunState } from './blind';
 import type { LessonId, TutorialEvent, TutorialEventKind, TutorialState } from './tutorial-state';
-import type { ExecutionReport } from '@/runner/types';
-
-/** Depois de tantas execuções o travamento do tutorial cai (uma falha do executor nunca prende o jogador). */
-const TUTORIAL_UNLOCK_RUNS = 3;
 
 /**
  * A Tutorial Run é uma run real. Este módulo só decide QUAL dica o Dealer mostra agora, a partir do
@@ -37,9 +33,9 @@ function welcome(): Lesson {
   return {
     id: 'welcome',
     title: 'Bem-vindo à casa',
-    text: 'Aqui cada mão de cartas vira um exercício de Python. Você joga cartas, programa, e o código vira pontos.',
+    text: 'Aqui você joga mãos de cartas de conceitos de Python, como no pôquer. Cada mão vem com uma pergunta rápida e vira pontos.',
     detail:
-      'Esta é uma run de verdade, no estilo dos jogos de cartas roguelike: blinds com meta, mãos e descartes limitados, jokers que premiam código bem escrito. Na primeira run você joga com o Pacote Funções.',
+      'Esta é uma run de verdade, no estilo dos jogos de cartas roguelike: blinds com meta, mãos e descartes limitados, jokers que dão bônus a mãos bem montadas. Na primeira run você joga com o Pacote Funções.',
     target: `${T('packs')}, ${T('start-run')}`,
     ack: false,
     action: 'Escolha um baralho e sente à mesa',
@@ -95,8 +91,8 @@ function lessonForRound(run: RunState, done: Set<LessonId>): Lesson | null {
     return {
       id: 'hand',
       title: 'Sua mão',
-      text: 'Escolha de 1 a 5 cartas e toque em Jogar. A PRIMEIRA carta que você escolher decide o assunto do exercício de código.',
-      detail: `Cartas do mesmo assunto formam combinações (PAIR, FLUSH…) e conceitos que combinam dão bônus.${combo ? ` Sua mão tem um combo: ${combo}. Escolha as duas cartas juntas!` : ''} Mais cartas jogadas = exercício maior, mas pontua mais.`,
+      text: 'Escolha de 1 a 5 cartas e toque em Jogar. A PRIMEIRA carta que você escolher decide o assunto da pergunta rápida da mão.',
+      detail: `Cartas do mesmo assunto formam combinações (PAIR, FLUSH…) e conceitos que combinam dão bônus.${combo ? ` Sua mão tem um combo: ${combo}. Escolha as duas cartas juntas!` : ''} Mais cartas jogadas = pergunta mais difícil, mas pontua mais.`,
       target: T('hand'),
       ack: false,
       action: 'Escolha cartas e toque em Jogar',
@@ -120,39 +116,22 @@ function lessonForRound(run: RunState, done: Set<LessonId>): Lesson | null {
   return null;
 }
 
-function lessonForCoding(run: RunState, done: Set<LessonId>, t: TutorialState): Lesson | null {
+function lessonForQuiz(run: RunState, done: Set<LessonId>): Lesson | null {
   const play = run.round?.play;
-  if (!play) return null;
-  const exercise = getExercise(play.exerciseId);
-  if (!done.has('code')) {
-    return {
-      id: 'code',
-      title: 'O exercício',
-      text: `Sua mão pediu: ${exercise.title}. Escreva a função no editor e toque em Executar para testar de graça.`,
-      detail:
-        'Executar roda só os testes visíveis e não custa nada. As cartas dos conceitos que o exercício usa valem o dobro.',
-      target: T('editor'),
-      ack: false,
-      action: 'Execute o código pelo menos uma vez',
-      mood: 'idle',
-      completeOn: ['executed'],
-    };
-  }
-  if (!done.has('deliver') && t.executed) {
-    return {
-      id: 'deliver',
-      title: 'Entregar',
-      text: 'Quando os testes visíveis passarem, toque em Entregar: roda também os testes ocultos e pontua a mão.',
-      detail:
-        'Entrega errada tira precisão (−10% da pontuação da mão), então teste com Executar antes. Se travar, a pergunta do Dealer é grátis.',
-      target: T('deliver'),
-      ack: false,
-      action: 'Entregue a mão',
-      mood: 'idle',
-      completeOn: ['scored'],
-    };
-  }
-  return null;
+  if (!play || done.has('quiz')) return null;
+  const question = getQuestion(play.questionId);
+  return {
+    id: 'quiz',
+    title: 'A pergunta da mão',
+    text: `Sua mão trouxe uma pergunta sobre ${question.card.toUpperCase()}. Escolha a alternativa certa para pontuar.`,
+    detail:
+      'Cada resposta errada tira 15% da pontuação da mão (a alternativa some e você tenta outra). A carta do conceito da pergunta vale o dobro.',
+    target: T('quiz'),
+    ack: false,
+    action: 'Responda a pergunta',
+    mood: 'idle',
+    completeOn: ['answered'],
+  };
 }
 
 function lessonForScored(run: RunState, done: Set<LessonId>): Lesson | null {
@@ -162,9 +141,9 @@ function lessonForScored(run: RunState, done: Set<LessonId>): Lesson | null {
     id: 'score',
     title: 'O placar',
     text: 'Fichas × multiplicador: a mão certa, cada carta, os combos e os jokers vão somando.',
-    detail: last?.forfeit
-      ? 'Você desistiu desta mão, então ela valeu 0 e gastou uma das suas mãos.'
-      : 'A precisão final reduz a pontuação se você errou entregas ou usou dicas pagas.',
+    detail: last
+      ? 'A precisão final reduz a pontuação se você errou alguma alternativa da pergunta.'
+      : undefined,
     target: T('score'),
     ack: true,
     mood: 'success',
@@ -194,7 +173,7 @@ function lessonForShop(done: Set<LessonId>, t: TutorialState): Lesson | null {
     title: 'A loja e os jokers',
     text: t.bought
       ? 'Boa compra! Quando terminar, siga para a próxima blind.'
-      : 'Jokers são IDIOMAS de Python: eles só pontuam quando o código que você ENTREGA usa aquele idioma. Cada um mostra um exemplo.',
+      : 'Jokers são IDIOMAS de Python: cada um dispara quando a sua mão tem as cartas daquele assunto. Cada um mostra um exemplo.',
     detail:
       'Compre um joker para levar o bônus pelas próximas mãos. Você também pode vender jokers depois por metade do preço.',
     target: T('shop-offers'),
@@ -224,11 +203,6 @@ function ending(run: RunState): Lesson {
   };
 }
 
-/** Só conta como "execução" para o tutorial o que passou pelo executor Python e voltou com um relatório. */
-export function isRealExecution(report: ExecutionReport): boolean {
-  return report.status !== 'rejected' && report.status !== 'crash';
-}
-
 /** A dica do Dealer que vale agora, ou null. Depende só do estado real da run. */
 export function currentLesson(run: RunState | null, tutorialCompleted = false): Lesson | null {
   if (!run) return tutorialCompleted ? null : welcome();
@@ -240,8 +214,8 @@ export function currentLesson(run: RunState | null, tutorialCompleted = false): 
       return lessonForBlind(run, done);
     case 'round':
       return lessonForRound(run, done);
-    case 'coding':
-      return lessonForCoding(run, done, t);
+    case 'quiz':
+      return lessonForQuiz(run, done);
     case 'scored':
       return lessonForScored(run, done);
     case 'cleared':
@@ -254,31 +228,13 @@ export function currentLesson(run: RunState | null, tutorialCompleted = false): 
   }
 }
 
-/**
- * Trava só o que a lição pede de verdade, e nunca por muito tempo: executar antes de entregar.
- * Depois de 3 execuções o travamento cai, para que uma falha do executor nunca deixe o jogador sem saída.
- */
-export function tutorialGate(run: RunState | null): 'deliver' | null {
-  if (!run?.tutorial) return null;
-  const lesson = currentLesson(run);
-  if (lesson?.id === 'code' && (run.round?.play?.runsUsed ?? 0) < TUTORIAL_UNLOCK_RUNS) {
-    return 'deliver';
-  }
-  return null;
-}
-
 /** Aplica um evento real: registra as ações e conclui a lição que estava ativa, se ele a conclui. */
 export function reduceTutorial(run: RunState, event: TutorialEvent): TutorialState | null {
   const t = run.tutorial;
   if (!t) return null;
   const lesson = currentLesson(run);
   const next: TutorialState = { ...t, done: [...t.done] };
-  if (event.kind === 'executed') next.executed = true;
   if (event.kind === 'bought') next.bought = true;
-  // As lições da tela do exercício terminam junto com a mão, mesmo que o jogador as tenha pulado.
-  if (event.kind === 'scored' && run.status === 'coding') {
-    for (const id of ['code', 'deliver'] as const) if (!next.done.includes(id)) next.done.push(id);
-  }
   // Jogar uma mão conclui a lição de mão; começar uma blind com regra de boss conclui a do boss.
   if (event.kind === 'played' && !next.done.includes('hand')) next.done.push('hand');
   if (

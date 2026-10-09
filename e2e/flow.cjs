@@ -1,9 +1,7 @@
-// Ações de alto nível do jogo para os scripts de e2e (Playwright): abrir, jogar mãos, resolver exercícios.
-const { launch, loadSolutions, BASE, OUT } = require('./lib.cjs');
+// Ações de alto nível do jogo para os scripts de e2e (Playwright): abrir, jogar mãos, responder perguntas.
+const { launch, loadAnswers, BASE, OUT } = require('./lib.cjs');
 
-const sols = loadSolutions();
-const byTitle = Object.fromEntries(Object.values(sols).map((v) => [v.title, v.solution]));
-const byId = sols;
+const answers = loadAnswers();
 
 const PROFILE_DONE = JSON.stringify({
   version: 1,
@@ -17,23 +15,12 @@ const PROFILE_DONE = JSON.stringify({
 });
 
 /** Contexto + página com coleta de erros de console. `tutorialDone` pula o tutorial (perfil de quem já jogou). */
-async function open(browser, { mobile = false, tutorialDone = true, cpu = 1, spy = false } = {}) {
+async function open(browser, { mobile = false, tutorialDone = true, cpu = 1 } = {}) {
   const ctx = await browser.newContext(
     mobile
       ? { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }
       : { viewport: { width: 1280, height: 900 } },
   );
-  if (spy) {
-    // Registra o código que o jogo manda ao worker Python (o que realmente é executado).
-    await ctx.addInitScript(() => {
-      window.__posted = [];
-      const original = Worker.prototype.postMessage;
-      Worker.prototype.postMessage = function (message, ...rest) {
-        if (message && typeof message.code === 'string') window.__posted.push(message.code);
-        return original.call(this, message, ...rest);
-      };
-    });
-  }
   if (tutorialDone) {
     await ctx.addInitScript((profile) => {
       if (!localStorage.getItem('devbet:profile:v1'))
@@ -76,13 +63,6 @@ async function forge(page, src) {
   await page.waitForTimeout(1200);
 }
 
-const setCode = async (page, code) => {
-  await page.waitForFunction(() => window.monaco && window.monaco.editor.getEditors().length > 0);
-  await page.waitForTimeout(1500);
-  await page.evaluate((c) => window.monaco.editor.getEditors()[0].setValue(c), code);
-  await page.waitForTimeout(300);
-};
-
 async function startRun(page) {
   await page.getByText('Sentar à mesa').click();
   await page.waitForTimeout(600);
@@ -101,24 +81,32 @@ async function playCards(page, n) {
   await page.waitForTimeout(1200);
 }
 
-const exerciseTitle = async (page) => (await page.locator('h1').first().innerText()).trim();
-const solutionFor = (title) => byTitle[title];
+/** Id da pergunta aberta (vem do próprio DOM, sem depender do autosave). */
+const questionId = (page) =>
+  page.locator('[data-tutorial="quiz"]').getAttribute('data-question', { timeout: 15000 });
 
-/** Resolve o exercício aberto com a solução oficial, testa com Executar e entrega. */
-async function solveAndDeliver(page, { skipRun = false } = {}) {
-  const title = await exerciseTitle(page);
-  const code = byTitle[title];
-  if (!code) throw new Error('sem solução para ' + title);
-  await setCode(page, code);
-  if (!skipRun) {
-    await page.getByRole('button', { name: 'Executar' }).click();
-    await page.waitForTimeout(4000);
+/** Responde a pergunta aberta com a alternativa certa e espera o placar. */
+async function solveAndDeliver(page) {
+  const id = await questionId(page);
+  const known = answers[id];
+  if (!known) throw new Error('sem resposta para ' + id);
+  await page.locator('[data-tutorial="quiz"] ul button').nth(known.answer).click();
+  await continueBtn(page).waitFor({ timeout: 15000 });
+  return id;
+}
+
+/** Erra de propósito `n` alternativas (as primeiras que não são a certa). */
+async function answerWrong(page, n = 1) {
+  const id = await questionId(page);
+  const known = answers[id];
+  const buttons = page.locator('[data-tutorial="quiz"] ul button');
+  let done = 0;
+  for (let i = 0; i < known.options && done < n; i++) {
+    if (i === known.answer) continue;
+    await buttons.nth(i).click();
+    done++;
   }
-  await page.getByRole('button', { name: 'Entregar' }).click();
-  await page
-    .getByRole('button', { name: /Continuar|Blind vencida|Suas mãos acabaram/ })
-    .waitFor({ timeout: 30000 });
-  return title;
+  return id;
 }
 
 const continueBtn = (page) =>
@@ -150,18 +138,16 @@ module.exports = {
   launch,
   BASE,
   OUT,
-  sols,
-  byId,
+  answers,
   open,
   getRun,
   getProfile,
   forge,
-  setCode,
   startRun,
   startBlind,
   playCards,
-  exerciseTitle,
-  solutionFor,
+  questionId,
+  answerWrong,
   solveAndDeliver,
   continueAfterScore,
   clearBlind,

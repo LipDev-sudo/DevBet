@@ -10,9 +10,6 @@ next-env.d.ts
 .vercel
 .DS_Store
 
-# Assets de terceiros copiados de node_modules por scripts/copy-assets.mjs
-/public/monaco
-/public/pyodide
 
 # Gerado pelo `next dev` quando detecta um agente de código; não faz parte do projeto
 AGENTS.md

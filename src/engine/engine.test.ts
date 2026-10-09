@@ -152,19 +152,15 @@ describe('pontuação da mão', () => {
     played,
     concepts: [] as CardId[],
     jokers: [] as string[],
-    code: 'return 1',
-    firstTry: true,
-    failedSubmissions: 0,
-    hintsUsed: 0,
-    solutionViewed: false,
+    failedAnswers: 0,
     ...extra,
   });
 
-  it('precisão penaliza erros e dicas, com piso', () => {
-    expect(precisionFactor(0, 0, false)).toBe(1);
-    expect(precisionFactor(1, 1, false)).toBe(0.8);
-    expect(precisionFactor(20, 20, false)).toBe(0.4);
-    expect(precisionFactor(0, 0, true)).toBe(0.4);
+  it('precisão penaliza respostas erradas, com piso', () => {
+    expect(precisionFactor(0)).toBe(1);
+    expect(precisionFactor(1)).toBe(0.85);
+    expect(precisionFactor(2)).toBe(0.7);
+    expect(precisionFactor(20)).toBe(0.4);
   });
 
   it('a mão certa já vale antes das cartas, e cada carta soma fichas e multiplicador', () => {
@@ -177,7 +173,7 @@ describe('pontuação da mão', () => {
     expect(score.total).toBe(Math.round(score.chips * score.mult));
   });
 
-  it('dobra o efeito de cartas cujo conceito o exercício usa', () => {
+  it('dobra o efeito de cartas cujo conceito a pergunta cobre', () => {
     const plain = scoreHand(base(deck('condition')));
     const boosted = scoreHand(base(deck('condition'), { concepts: ['condition'] }));
     expect(boosted.steps[1]?.addChips).toBe((plain.steps[1]?.addChips ?? 0) * 2);
@@ -190,15 +186,15 @@ describe('pontuação da mão', () => {
     expect(score.steps.some((step) => step.kind === 'combo')).toBe(true);
   });
 
-  it('jokers disparam na ordem e só quando o código usa o idioma', () => {
+  it('jokers disparam na ordem e só quando a mão tem as cartas do idioma', () => {
     const withIdiom = scoreHand(
-      base(deck('for'), { jokers: ['comprehension', 'fstring'], code: 'return [n for n in x]' }),
+      base(deck('list', 'for'), { jokers: ['comprehension', 'fstring'] }),
     );
     const jokers = withIdiom.steps.filter((step) => step.kind === 'joker');
     expect(jokers.map((step) => step.jokerId)).toEqual(['comprehension']);
-    const without = scoreHand(base(deck('for'), { jokers: ['comprehension'], code: 'return 1' }));
+    const without = scoreHand(base(deck('for'), { jokers: ['comprehension'] }));
     expect(without.steps.some((step) => step.kind === 'joker')).toBe(false);
-    expect(withIdiom.total).toBeGreaterThan(without.total);
+    expect(withIdiom.steps.some((step) => step.kind === 'joker')).toBe(true);
   });
 
   it('multiplicadores de joker multiplicam o placar acumulado', () => {
@@ -207,13 +203,11 @@ describe('pontuação da mão', () => {
     expect(x.mult).toBeCloseTo(one.mult * 1.5, 1);
   });
 
-  it('precisão e solução reduzem o total; carta anulada não pontua', () => {
+  it('respostas erradas reduzem o total; carta anulada não pontua', () => {
     const clean = scoreHand(base(deck('for', 'list')));
-    const messy = scoreHand(base(deck('for', 'list'), { failedSubmissions: 2 }));
+    const messy = scoreHand(base(deck('for', 'list'), { failedAnswers: 2 }));
     expect(messy.total).toBeLessThan(clean.total);
-    expect(messy.steps.at(-1)).toMatchObject({ kind: 'precision', xMult: 0.8 });
-    const peeked = scoreHand(base(deck('for', 'list'), { solutionViewed: true }));
-    expect(peeked.precision).toBe(0.4);
+    expect(messy.steps.at(-1)).toMatchObject({ kind: 'precision', xMult: 0.7 });
     const debuffed = scoreHand(base(deck('for', 'list'), { debuffed: (c) => c.cardId === 'for' }));
     expect(debuffed.steps.find((step) => step.label === 'FOR')?.debuffed).toBe(true);
     expect(debuffed.total).toBeLessThan(clean.total);

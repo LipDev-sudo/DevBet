@@ -1,5 +1,5 @@
-// Navegação formal só por teclado (desktop 1280x900): Home → Start → Blind → mão (cartas com Space) → exercício
-// (Ctrl+Enter, Ctrl+M) → Entregar → placar → loja → modais (foco seguro, Esc, retorno de foco) → nova run.
+// Navegação formal só por teclado (desktop 1280x900): Home → Start → Blind → mão (cartas com Space) → pergunta
+// (alternativas com Tab/Enter) → placar → loja → modais (foco seguro, Esc, retorno de foco) → nova run.
 const f = require('./flow.cjs');
 const log = console.log;
 const problems = [];
@@ -23,7 +23,6 @@ const describe = (page) =>
       name: name.replace(/\s+/g, ' ').slice(0, 70),
       visible: outline || shadow,
       inDialog: !!el.closest('dialog'),
-      inMonaco: !!el.closest('.monaco-editor'),
       disabled: el.disabled === true,
       pressed: el.getAttribute('aria-pressed'),
     };
@@ -37,7 +36,7 @@ async function tabTo(page, re, label, { max = 40 } = {}) {
     const d = await describe(page);
     seen.push(d.name || d.tag);
     if (d.disabled) check(false, `${label}: controle desabilitado recebeu foco (${d.name})`);
-    if (re.test(d.name) && !d.inMonaco) {
+    if (re.test(d.name)) {
       check(
         d.visible,
         `${label}: alcançado com ${i + 1} Tab, foco visível (${d.name.slice(0, 40)})`,
@@ -80,41 +79,42 @@ async function tabTo(page, re, label, { max = 40 } = {}) {
   await page.keyboard.press('Tab');
   await page.keyboard.press('Space');
   check(
-    /decide o exercício/.test(await page.locator('[role=status]').first().innerText()),
+    /decide a pergunta/.test(await page.locator('[role=status]').first().innerText()),
     'Mão: a 1ª carta escolhida lidera e a tela avisa',
   );
   const play = await tabTo(page, /Jogar mão/i, 'Mão: Jogar mão');
   check(play !== null, 'Mão: Jogar mão alcançável');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(1500);
-  check((await run()).status === 'coding', 'Jogar mão por teclado abre o exercício');
+  check((await run()).status === 'quiz', 'Jogar mão por teclado abre a pergunta');
 
-  // EXERCÍCIO: editor, Ctrl+Enter, Ctrl+M, Executar/Entregar
-  const title = await f.exerciseTitle(page);
-  await f.setCode(page, 'def x(:\n');
-  await page.locator('.monaco-editor textarea').first().focus();
-  await page.keyboard.press('Control+Enter');
-  await page.waitForTimeout(3500);
-  check(
-    (await page.locator('[role=status]').allInnerTexts()).join(' ').length > 0,
-    'Ctrl+Enter executa e devolve feedback anunciável',
-  );
-  await page.locator('.monaco-editor textarea').first().focus();
-  await page.keyboard.press('Control+M');
-  await page.keyboard.press('Tab');
-  d = await describe(page);
-  check(!d.inMonaco, `Editor: Ctrl+M + Tab sai do editor (foco em "${d.name.slice(0, 30)}")`);
-  await f.setCode(page, f.solutionFor(title));
-  await page.locator('.monaco-editor textarea').first().focus();
-  await page.keyboard.press('Control+M');
-  await tabTo(page, /^Executar$/i, 'Exercício: Executar', { max: 12 });
+  // PERGUNTA: alternativas por Tab, Enter responde
+  const id = await f.questionId(page);
+  const answer = f.answers[id].answer;
+  await tabTo(page, /^A\s/, 'Pergunta: alternativa A');
+  const wrongKey = answer === 0 ? 1 : 0;
+  if (wrongKey === 1) await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(4500);
-  await tabTo(page, /^Entregar$/i, 'Exercício: Entregar', { max: 6 });
+  await page.waitForTimeout(400);
+  check(
+    (await page.locator('[data-tutorial="quiz"] ul button[aria-disabled="true"]').count()) === 1,
+    'Pergunta: Enter numa alternativa errada a risca',
+  );
+  check(
+    /Precisão atual/.test(await page.locator('body').innerText()),
+    'Pergunta: o Dealer mostra a precisão depois do erro',
+  );
+  await tabTo(page, /^[ABCD]\s/, 'Pergunta: de volta às alternativas');
+  const target = ['A', 'B', 'C', 'D'][answer];
+  for (let i = 0; i < 4; i++) {
+    const cur = await describe(page);
+    if (cur.name.startsWith(target + ' ')) break;
+    await page.keyboard.press('Tab');
+  }
   await page.keyboard.press('Enter');
   await page
     .getByRole('button', { name: /Continuar|Blind vencida|Suas mãos acabaram/ })
-    .waitFor({ timeout: 30000 });
+    .waitFor({ timeout: 15000 });
 
   // PLACAR: Pular animação / Continuar por teclado
   await page.waitForTimeout(500);
@@ -133,18 +133,6 @@ async function tabTo(page, re, label, { max = 40 } = {}) {
   }
   await page.keyboard.press('Enter');
   await page.waitForTimeout(800);
-
-  // DESISTIR: confirmação destrutiva abre na opção segura
-  await f.playCards(page, 1);
-  await page.getByRole('button', { name: 'Desistir' }).focus();
-  await page.keyboard.press('Enter');
-  await page.waitForTimeout(300);
-  d = await describe(page);
-  check(/Continuar jogando/i.test(d.name), `Desistir: foco inicial na opção segura (${d.name})`);
-  await page.keyboard.press('Enter');
-  await page.waitForTimeout(300);
-  check((await run()).status === 'coding', 'Desistir: Enter no foco inicial NÃO desiste');
-  await page.keyboard.press('Control+End'); // não faz nada de especial; garante o foco fora de modais
 
   // LOJA (estado forjado) por teclado
   await f.forge(

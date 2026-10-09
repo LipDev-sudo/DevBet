@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRun, handCards, startBlind, type Result, type RunState } from './blind';
 import { createProfile } from './progression';
-import { currentLesson, reduceTutorial, tutorialGate } from './tutorial';
+import { currentLesson, reduceTutorial } from './tutorial';
 
 const unwrap = (r: Result<RunState>): RunState => {
   if (!r.ok) throw new Error(r.reason);
@@ -33,7 +33,7 @@ describe('Tutorial Run', () => {
     expect(ids).toContain('return');
     const lesson = currentLesson({
       ...run,
-      tutorial: { done: ['blind'], executed: false, bought: false },
+      tutorial: { done: ['blind'], bought: false },
     });
     expect(lesson?.id).toBe('hand');
     expect(lesson?.detail).toMatch(/PURE FUNCTION/);
@@ -59,35 +59,24 @@ describe('Tutorial Run', () => {
     expect(reduceTutorial(run, { kind: 'ack', lesson: 'shop' })!.done).toEqual([]);
   });
 
-  it('Entregar fica travado até a primeira execução real, e o travamento tem saída', () => {
+  it('a pergunta da mão vira a lição "quiz" e só uma resposta certa a conclui', () => {
     const base = unwrap(startBlind(fresh()));
-    const coding: RunState = {
+    const quiz: RunState = {
       ...base,
-      status: 'coding',
-      tutorial: { done: ['blind', 'hand'], executed: false, bought: false },
+      status: 'quiz',
+      tutorial: { done: ['blind', 'hand'], bought: false },
       round: {
         ...base.round!,
         play: {
           uids: [base.round!.hand[0] as string],
-          exerciseId: 'mini-variable-1',
-          failedRuns: 0,
-          failedSubmissions: 0,
-          hintLevel: 0,
-          solutionViewed: false,
-          runsUsed: 0,
-          draft: null,
+          questionId: 'q-variable-1',
+          wrong: [],
         },
       },
     };
-    expect(currentLesson(coding)?.id).toBe('code');
-    expect(tutorialGate(coding)).toBe('deliver');
-    const withRuns = {
-      ...coding,
-      round: { ...coding.round!, play: { ...coding.round!.play!, runsUsed: 3 } },
-    };
-    expect(tutorialGate(withRuns)).toBeNull();
-    const executed = { ...coding, tutorial: reduceTutorial(coding, { kind: 'executed' })! };
-    expect(currentLesson(executed)?.id).toBe('deliver');
+    expect(currentLesson(quiz)?.id).toBe('quiz');
+    expect(reduceTutorial(quiz, { kind: 'answered' })!.done).toContain('quiz');
+    expect(reduceTutorial(quiz, { kind: 'played' })!.done).not.toContain('quiz');
   });
 
   it('terminar a run mostra a lição de fim, sem botão de avançar', () => {

@@ -15,8 +15,7 @@ async function layoutCheck(page, name, mobile) {
         offscreen: [],
       };
       const vw = doc.clientWidth;
-      const skip = (el) =>
-        el.closest('.monaco-editor') || el.closest('.sr-only') || el.classList.contains('sr-only');
+      const skip = (el) => el.closest('.sr-only') || el.classList.contains('sr-only');
       for (const el of document.querySelectorAll(
         'button, a[href], input, select, summary, [role=button]',
       )) {
@@ -72,21 +71,14 @@ async function run(browser, mobile) {
   await snap('06-selected');
   await page.getByRole('button', { name: 'Jogar mão' }).click();
   await page.waitForTimeout(1500);
-  await snap('07-coding');
-  const title = await f.exerciseTitle(page);
-  await f.setCode(page, 'def x(:\n  return 1/0');
-  await page.getByRole('button', { name: 'Executar' }).click();
-  await page.waitForTimeout(4000);
-  await snap('08-coding-error');
+  await snap('07-quiz');
+  await f.answerWrong(page, 1);
+  await snap('08-quiz-wrong');
   await page.getByRole('button', { name: /Abandonar run/ }).click();
   await page.waitForTimeout(300);
   await snap('09-abandon-modal', false);
   await page.keyboard.press('Escape');
-  await f.setCode(page, f.solutionFor(title));
-  await page.getByRole('button', { name: 'Entregar' }).click();
-  await page
-    .getByRole('button', { name: /Continuar|Blind vencida|Suas mãos acabaram/ })
-    .waitFor({ timeout: 30000 });
+  await f.solveAndDeliver(page);
   await page.waitForTimeout(3500);
   await snap('10-score');
   await f.forge(

@@ -15,11 +15,11 @@ const PILLARS = [
   },
   {
     name: 'Code',
-    text: 'Cada mão jogada pede um exercício de Python. Código certo pontua: fichas × multiplicador.',
+    text: 'Cada mão jogada traz uma pergunta rápida de Python. Acertou, pontua: fichas × multiplicador.',
   },
   {
     name: 'Jokers',
-    text: 'Jokers são idiomas de Python (comprehension, f-string, ternário…) e só pontuam se o seu código os usa.',
+    text: 'Jokers são idiomas de Python (comprehension, f-string, ternário…) e disparam quando sua mão tem as cartas certas.',
   },
   {
     name: 'Blinds',

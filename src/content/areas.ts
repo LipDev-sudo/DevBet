@@ -1,4 +1,10 @@
-import type { Area } from '@/engine/challenge';
+export interface Area {
+  id: string;
+  name: string;
+  subtitle: string;
+  /** Posição na trilha (0 = primeira). */
+  order: number;
+}
 
 export const AREAS: readonly Area[] = [
   {

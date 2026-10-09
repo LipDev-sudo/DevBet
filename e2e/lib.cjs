@@ -7,11 +7,11 @@ const { chromium } = require('playwright-core');
 
 const root = path.resolve(__dirname, '..');
 
-/** Soluções de referência (desafios e mini-desafios), lidas direto do conteúdo (Node >= 22.18 executa .ts). */
-function loadSolutions() {
+/** Respostas certas de todas as perguntas, lidas direto do conteúdo (Node >= 22.18 executa .ts). */
+function loadAnswers() {
   const script =
-    "Promise.all([import('./src/content/challenges.ts'), import('./src/content/minis.ts')]).then(([c, m]) => console.log(JSON.stringify(Object.fromEntries(" +
-    '[...c.ALL_CHALLENGES, ...m.MINI_CHALLENGES].map((x) => [x.id, { title: x.title, solution: x.solution.code }])))))';
+    "import('./src/content/quiz.ts').then((m) => console.log(JSON.stringify(Object.fromEntries(" +
+    'm.ALL_QUESTIONS.map((q) => [q.id, { answer: q.answer, options: q.options.length }])))))';
   const out = execFileSync(process.execPath, ['--no-warnings', '-e', script], {
     cwd: root,
     encoding: 'utf8',
@@ -30,4 +30,4 @@ function launch() {
   });
 }
 
-module.exports = { chromium, launch, loadSolutions, BASE, OUT, root };
+module.exports = { chromium, launch, loadAnswers, BASE, OUT, root };

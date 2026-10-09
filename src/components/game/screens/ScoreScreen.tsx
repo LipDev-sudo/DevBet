@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { PlayingCard } from '@/components/ui/PlayingCard';
-import { getExercise } from '@/content/exercises';
+import { RichText } from '@/components/ui/RichText';
+import { getQuestion } from '@/content/quiz';
 import { deckEntry, currentBlind } from '@/engine/blind';
 import { playSfx } from '@/lib/sfx';
 import { useGame } from '../GameProvider';
@@ -27,11 +28,11 @@ export function ScoreScreen() {
   const last = round?.last ?? null;
   const stepCount = last?.score.steps.length ?? 0;
   const [revealedRaw, setRevealed] = useState(0);
-  // Mão desistida ou "reduzir movimento": o placar já aparece completo, sem animação.
+  // Com "reduzir movimento" o placar já aparece completo, sem animação.
   const [instant] = useState(() => prefersReducedMotion());
   const sfxRef = useRef(false);
   const continueRef = useRef<HTMLButtonElement>(null);
-  const noAnimation = instant || Boolean(last?.forfeit);
+  const noAnimation = instant;
   const revealed = noAnimation ? stepCount : revealedRaw;
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export function ScoreScreen() {
 
   const done = revealed >= stepCount;
   useEffect(() => {
-    if (done && last && !last.forfeit && !sfxRef.current) {
+    if (done && last && !sfxRef.current) {
       sfxRef.current = true;
       playSfx('correct');
     }
@@ -58,25 +59,25 @@ export function ScoreScreen() {
 
   if (!run || !round || !last) return null;
   const score = last.score;
-  const exercise = getExercise(last.exerciseId);
+  const question = getQuestion(last.questionId);
   const def = currentBlind(run);
   const shown = score.steps[Math.max(0, Math.min(revealed, stepCount) - 1)];
   const active = done ? undefined : score.steps[revealed - 1];
-  const before = round.roundScore - (last.forfeit ? 0 : score.total);
+  const before = round.roundScore - score.total;
   const shownRound = done ? round.roundScore : before;
   const cleared = round.roundScore >= round.target;
   const out = !cleared && round.handsLeft <= 0;
   const played = last.uids.map((uid) => deckEntry(run, uid));
-  const total = last.forfeit ? 0 : score.total;
+  const total = score.total;
 
   return (
     <div className="screen-focus mx-auto max-w-4xl space-y-6">
       <header className="text-center">
         <p className="table-label">
-          {def.name} · {exercise.title}
+          {def.name} · {question.card.toUpperCase()}
         </p>
         <h1 className="mt-1 text-2xl font-black tracking-tight text-ivory sm:text-4xl">
-          {last.forfeit ? 'MÃO DESISTIDA' : score.rank.name}
+          {score.rank.name}
         </h1>
       </header>
 
@@ -98,47 +99,55 @@ export function ScoreScreen() {
                 cardId={card.cardId}
                 upgrade={card.upgrade}
                 size="sm"
-                boosted={exercise.concepts.includes(card.cardId)}
+                boosted={card.cardId === question.card}
                 selected={active?.uid === card.uid}
               />
             </li>
           ))}
         </ul>
 
-        {last.forfeit ? (
-          <p className="text-sm text-ivory-dim">
-            Você desistiu do exercício: esta mão vale 0 pontos e foi gasta.
+        <>
+          <div className="flex items-center justify-center gap-3 font-mono text-3xl font-black sm:text-5xl">
+            <span
+              key={`c${shown?.chips ?? 0}`}
+              className="score-pop rounded-lg bg-sky-900/60 px-4 py-2 text-sky-200 tabular-nums"
+            >
+              {shown?.chips ?? 0}
+            </span>
+            <span className="text-ivory-dim">×</span>
+            <span
+              key={`m${shown?.mult ?? 0}`}
+              className="score-pop rounded-lg bg-wine/60 px-4 py-2 text-crimson-hot tabular-nums"
+            >
+              {shown?.mult ?? 0}
+            </span>
+          </div>
+          <p className="mt-3 min-h-6 text-sm text-ivory" role="status" aria-live="polite">
+            {active
+              ? `${active.label}${active.debuffed ? ' (anulada)' : ''}${active.addChips && active.kind !== 'rank' ? ` +${active.addChips} fichas` : ''}${active.addMult && active.kind !== 'rank' ? ` +${active.addMult} mult` : ''}${active.xMult !== 1 ? ` ×${active.xMult}` : ''}`
+              : `${score.rank.name}: ${score.chips} × ${score.mult}${score.precision < 1 ? ` × precisão ${score.precision}` : ''}`}
           </p>
-        ) : (
-          <>
-            <div className="flex items-center justify-center gap-3 font-mono text-3xl font-black sm:text-5xl">
-              <span
-                key={`c${shown?.chips ?? 0}`}
-                className="score-pop rounded-lg bg-sky-900/60 px-4 py-2 text-sky-200 tabular-nums"
-              >
-                {shown?.chips ?? 0}
-              </span>
-              <span className="text-ivory-dim">×</span>
-              <span
-                key={`m${shown?.mult ?? 0}`}
-                className="score-pop rounded-lg bg-wine/60 px-4 py-2 text-crimson-hot tabular-nums"
-              >
-                {shown?.mult ?? 0}
-              </span>
-            </div>
-            <p className="mt-3 min-h-6 text-sm text-ivory" role="status" aria-live="polite">
-              {active
-                ? `${active.label}${active.debuffed ? ' (anulada)' : ''}${active.addChips && active.kind !== 'rank' ? ` +${active.addChips} fichas` : ''}${active.addMult && active.kind !== 'rank' ? ` +${active.addMult} mult` : ''}${active.xMult !== 1 ? ` ×${active.xMult}` : ''}`
-                : `${score.rank.name}: ${score.chips} × ${score.mult}${score.precision < 1 ? ` × precisão ${score.precision}` : ''}`}
+          {done && (
+            <p className="score-pop mt-2 font-display text-4xl font-black text-gold tabular-nums sm:text-6xl">
+              +{total}
             </p>
-            {done && (
-              <p className="score-pop mt-2 font-display text-4xl font-black text-gold tabular-nums sm:text-6xl">
-                +{total}
-              </p>
-            )}
-          </>
-        )}
+          )}
+        </>
       </section>
+
+      {done && (
+        <section aria-label="Explicação" className="panel rounded-lg p-4 text-left">
+          <p className="table-label">
+            {last.wrongAnswers === 0 ? 'Acertou de primeira' : 'Resposta certa'}
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-ivory">
+            <RichText text={question.options[question.answer] ?? ''} />
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-ivory-dim">
+            <RichText text={question.explanation} />
+          </p>
+        </section>
+      )}
 
       <section className="panel rounded-lg p-4" aria-label="Meta da blind">
         <div className="flex items-baseline justify-between text-sm">

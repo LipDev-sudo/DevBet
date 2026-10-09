@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_CHALLENGES } from './challenges';
+import { AREAS } from './areas';
 import { TABLES } from './tables';
 
 describe('cenas das mesas', () => {
@@ -17,10 +17,10 @@ describe('cenas das mesas', () => {
     expect([...vignette]).toEqual([...vignette].sort((a, b) => a - b));
   });
 
-  it('toda mesa tem desafios e declara o conteúdo futuro sem inventar desafios', () => {
+  it('toda mesa pertence a uma área da trilha', () => {
     for (const table of TABLES) {
       expect(
-        ALL_CHALLENGES.some((c) => c.areaId === table.areaId),
+        AREAS.some((area) => area.id === table.areaId),
         table.id,
       ).toBe(true);
     }

@@ -7,19 +7,14 @@ import {
   createRun,
   discard,
   finishRunProfile,
-  forfeitHand,
+  answerQuestion,
   leaveShop,
   moveJoker,
   openShop,
   playHand,
-  registerFailure,
-  registerRun,
-  requestHint,
   rerollShop,
-  saveDraft,
   sellJoker,
   startBlind,
-  submitHand,
   TUTORIAL_PACK_ID,
   type Result,
   type RunState,
@@ -41,12 +36,7 @@ export type GameAction =
   | { type: 'start-blind' }
   | { type: 'discard'; uids: string[] }
   | { type: 'play'; uids: string[] }
-  | { type: 'draft'; code: string }
-  | { type: 'ran' }
-  | { type: 'failed'; kind: 'run' | 'submit' }
-  | { type: 'hint' }
-  | { type: 'submit'; code: string }
-  | { type: 'forfeit' }
+  | { type: 'answer'; option: number }
   | { type: 'continue' }
   | { type: 'cash-out' }
   | { type: 'buy'; index: number }
@@ -78,10 +68,6 @@ function applyResult(state: GameState, result: Result<RunState>): GameState {
   };
 }
 
-function withRun(state: GameState, fn: (run: RunState) => RunState): GameState {
-  return state.run ? { ...state, run: fn(state.run) } : state;
-}
-
 /** Ações do jogo que o tutorial enxerga como eventos reais. */
 function tutorialEventFor(action: GameAction): TutorialEvent | null {
   switch (action.type) {
@@ -93,9 +79,8 @@ function tutorialEventFor(action: GameAction): TutorialEvent | null {
       return { kind: 'played' };
     case 'discard':
       return { kind: 'discarded' };
-    case 'submit':
-    case 'forfeit':
-      return { kind: 'scored' };
+    case 'answer':
+      return { kind: 'answered' };
     case 'continue':
       return { kind: 'continued' };
     case 'cash-out':
@@ -132,6 +117,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   const next = reduceGame(state, action);
   const event = tutorialEventFor(action);
   if (!event || !before?.tutorial || !next.run || next.run === before) return next;
+  // Uma resposta errada não conclui a lição: só a que pontua a mão.
+  if (event.kind === 'answered' && next.run.status !== 'scored') return next;
   return { ...next, run: { ...next.run, tutorial: reduceTutorial(before, event) } };
 }
 
@@ -172,18 +159,8 @@ function reduceGame(state: GameState, action: GameAction): GameState {
       return run ? applyResult(state, discard(run, action.uids)) : state;
     case 'play':
       return run ? applyResult(state, playHand(run, action.uids)) : state;
-    case 'draft':
-      return withRun(state, (r) => saveDraft(r, action.code));
-    case 'ran':
-      return withRun(state, registerRun);
-    case 'failed':
-      return withRun(state, (r) => registerFailure(r, action.kind));
-    case 'hint':
-      return run ? applyResult(state, requestHint(run)) : state;
-    case 'submit':
-      return run ? applyResult(state, submitHand(run, action.code)) : state;
-    case 'forfeit':
-      return run ? applyResult(state, forfeitHand(run)) : state;
+    case 'answer':
+      return run ? applyResult(state, answerQuestion(run, action.option)) : state;
     case 'continue':
       return run ? applyResult(state, continueAfterScore(run)) : state;
     case 'cash-out':
