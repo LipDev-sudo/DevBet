@@ -44,6 +44,8 @@ service cloud.firestore {
     // Respostas das perguntas: cada jogador grava só as próprias marcações; quem lê é o administrador.
     match /answers/{answerId} {
       allow read: if isAdmin();
+      // O jogo lê o próprio documento antes de somar a marcação nova (transação).
+      allow get: if request.auth != null && answerId.matches('.*__' + request.auth.uid);
       allow create, update: if request.auth != null
         && !isBanned(request.auth.uid)
         && request.resource.data.keys().hasOnly(['questionId', 'uid', 'nickname', 'picks', 'updatedAt'])
