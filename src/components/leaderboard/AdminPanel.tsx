@@ -9,6 +9,7 @@ import {
   signOutUser,
   type RankedEntry,
 } from '@/lib/leaderboard-client';
+import { AnswerStats } from './AnswerStats';
 import { useAccount } from './AccountProvider';
 
 function describe(error: unknown): string {
@@ -34,6 +35,7 @@ export function AdminPanel() {
   const [entries, setEntries] = useState<RankedEntry[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
+  const [tab, setTab] = useState<'placar' | 'respostas'>('placar');
   const isAdminUser = Boolean(user && !user.anonymous);
 
   const load = useCallback(() => {
@@ -118,9 +120,41 @@ export function AdminPanel() {
     }
   };
 
+  const tabs = (
+    <div role="tablist" aria-label="Moderação" className="flex gap-2">
+      {(['placar', 'respostas'] as const).map((id) => (
+        <Button
+          key={id}
+          role="tab"
+          aria-selected={tab === id}
+          size="sm"
+          variant={tab === id ? 'felt' : 'ghost'}
+          onClick={() => setTab(id)}
+        >
+          {id === 'placar' ? 'Placar' : 'Respostas'}
+        </Button>
+      ))}
+    </div>
+  );
+
+  if (tab === 'respostas') {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {tabs}
+          <Button size="sm" variant="ghost" onClick={() => void signOutUser()}>
+            Sair
+          </Button>
+        </div>
+        <AnswerStats />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
+        {tabs}
         <div className="min-w-0 text-sm text-ivory-dim">
           <p>Moderação: {entries ? `${entries.length} registros` : 'carregando…'}</p>
           <p className="mt-1 text-xs break-all">

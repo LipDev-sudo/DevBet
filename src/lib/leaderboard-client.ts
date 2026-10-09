@@ -1,3 +1,4 @@
+import type { AnswerDoc } from './answers';
 import { getFirebase } from './firebase';
 import { LEADERBOARD_SIZE, shouldReplace, type LeaderboardEntry } from './leaderboard';
 
@@ -84,6 +85,46 @@ export async function signOutUser(): Promise<void> {
   const { auth } = await getFirebase();
   const { signOut } = await import('firebase/auth');
   await signOut(auth);
+}
+
+/* ------------------------------------------------------------ respostas das perguntas */
+
+/** Guarda a alternativa marcada numa pergunta (um documento por jogador e pergunta, com todas as marcações). */
+export async function recordAnswer(
+  uid: string,
+  nickname: string,
+  questionId: string,
+  pick: number,
+): Promise<void> {
+  const { db } = await getFirebase();
+  const { doc, runTransaction, serverTimestamp } = await import('firebase/firestore');
+  const ref = doc(db, 'answers', `${questionId}__${uid}`);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const old = snap.exists() ? ((snap.data() as { picks?: number[] }).picks ?? []) : [];
+    tx.set(ref, {
+      questionId,
+      uid,
+      nickname,
+      picks: [...old, pick].slice(-60),
+      updatedAt: serverTimestamp(),
+    });
+  });
+}
+
+/** Todas as respostas registradas (só o administrador consegue ler). */
+export async function listAnswers(): Promise<AnswerDoc[]> {
+  const { db } = await getFirebase();
+  const { collection, getDocs, limit, query } = await import('firebase/firestore');
+  const snapshot = await getDocs(query(collection(db, 'answers'), limit(5000)));
+  return snapshot.docs.map((d) => {
+    const data = d.data() as Partial<AnswerDoc>;
+    return {
+      questionId: String(data.questionId ?? ''),
+      nickname: String(data.nickname ?? '?'),
+      picks: Array.isArray(data.picks) ? data.picks.filter((n) => Number.isInteger(n)) : [],
+    };
+  });
 }
 
 /* ----------------------------------------------------------------- moderação (admin) */

@@ -78,7 +78,7 @@ export function ScoreSubmit({ run }: { run: RunState }) {
           {status === 'sending' && 'Enviando sua pontuação…'}
           {status === 'sent' && `Pontuação enviada: ${run.score} pontos como ${nickname}.`}
           {status === 'kept' &&
-            'Seu melhor resultado no placar continua maior que este. Boa tentativa!'}
+            'Seu resultado já está no placar, e o melhor de todos continua valendo. Boa tentativa!'}
           {status === 'error' &&
             'Não foi possível enviar agora. Confira a conexão e tente outra run.'}
           {status === 'idle' && alreadySent(run.id) && 'Esta run já foi enviada ao placar.'}

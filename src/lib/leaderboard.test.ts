@@ -49,6 +49,25 @@ describe('apelido do placar', () => {
   });
 });
 
+describe('placar em tempo real', () => {
+  it('uma run em andamento já gera a entrada, e cresce a cada mão', () => {
+    const running = endedRun({ status: 'round', score: 400, bestHand: 400, history: [] });
+    expect(entryFromRun(running, 'Ana')).toMatchObject({
+      score: 400,
+      won: false,
+      blindsCleared: 0,
+    });
+    const later = endedRun({ status: 'shop', score: 950, bestHand: 550 });
+    expect(entryFromRun(later, 'Ana')?.score).toBe(950);
+    expect(shouldReplace({ score: 400 }, { score: 950 })).toBe(true);
+  });
+
+  it('sem pontos ou sem apelido válido, nada vai ao placar', () => {
+    expect(entryFromRun(endedRun({ status: 'round', score: 0 }), 'Ana')).toBeNull();
+    expect(entryFromRun(endedRun({ status: 'round', score: 300 }), '')).toBeNull();
+  });
+});
+
 describe('entrada do placar', () => {
   it('monta só dados do jogo e o apelido', () => {
     const entry = entryFromRun(endedRun(), 'Ana')!;
@@ -68,8 +87,7 @@ describe('entrada do placar', () => {
     ]);
   });
 
-  it('runs em andamento, sem pontos ou com apelido inválido não pontuam', () => {
-    expect(entryFromRun(endedRun({ status: 'round' }), 'Ana')).toBeNull();
+  it('sem pontos ou com apelido inválido não pontuam', () => {
     expect(entryFromRun(endedRun({ score: 0 }), 'Ana')).toBeNull();
     expect(entryFromRun(endedRun(), 'x')).toBeNull();
   });

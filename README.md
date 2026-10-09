@@ -87,6 +87,8 @@ Limitação: o jogo roda no navegador, então as regras só barram valores impos
 
 **Moderação.** `/admin` (sem link no site, fora dos buscadores) lista os registros e permite apagar um nome impróprio, ou apagar e bloquear o jogador. Entra com a conta de e-mail e senha criada no console do Firebase (Authentication → Users); o UID dela vai em `isAdmin()` no `firestore.rules`. Só essa conta apaga: as regras do Firestore é que decidem, não a interface.
 
+A aba **Respostas** do `/admin` mostra, para cada pergunta, o percentual de cada alternativa e os apelidos de quem a marcou (toque na pergunta para ver os nomes). O jogo grava cada alternativa marcada em `answers/{pergunta}__{uid}`; só o administrador lê essa coleção.
+
 Teste da interface: `node e2e/leaderboard.js off` (build sem as variáveis) e `node e2e/leaderboard.js configured` (build com valores de teste em `NEXT_PUBLIC_FIREBASE_*`). O login real e a gravação no Firestore dependem do seu projeto e precisam de teste manual.
 
 ### Variáveis de ambiente

@@ -60,9 +60,11 @@ export interface LeaderboardEntry {
   won: boolean;
 }
 
-/** Entrada do placar a partir de uma run encerrada, ou `null` se a run não deve pontuar. */
+/**
+ * Entrada do placar a partir da run (em andamento ou encerrada), ou `null` se ela ainda não deve pontuar.
+ * O placar acompanha a run em tempo real: cada mão que soma pontos pode atualizar o registro do jogador.
+ */
 export function entryFromRun(run: RunState, nickname: string): LeaderboardEntry | null {
-  if (run.status !== 'won' && run.status !== 'lost') return null;
   if (run.score <= 0) return null;
   const clean = sanitizeNickname(nickname);
   if (!clean.ok) return null;

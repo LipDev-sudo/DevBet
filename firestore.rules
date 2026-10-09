@@ -41,6 +41,27 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Respostas das perguntas: cada jogador grava só as próprias marcações; quem lê é o administrador.
+    match /answers/{answerId} {
+      allow read: if isAdmin();
+      allow create, update: if request.auth != null
+        && !isBanned(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['questionId', 'uid', 'nickname', 'picks', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.questionId is string
+        && request.resource.data.questionId.size() <= 40
+        && answerId == request.resource.data.questionId + '__' + request.auth.uid
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.size() >= 2
+        && request.resource.data.nickname.size() <= 16
+        && request.resource.data.picks is list
+        && request.resource.data.picks.size() >= 1
+        && request.resource.data.picks.size() <= 60
+        && request.resource.data.picks.hasOnly([0, 1, 2, 3])
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
     match /banned/{uid} {
       allow read, write: if isAdmin();
     }

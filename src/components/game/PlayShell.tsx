@@ -1,6 +1,9 @@
 'use client';
 
 import { Wordmark } from '@/components/ui/Wordmark';
+import { AnswerSync } from '@/components/leaderboard/AnswerSync';
+import { LiveScoreSync } from '@/components/leaderboard/LiveScoreSync';
+import { NicknamePrompt } from '@/components/leaderboard/NicknamePrompt';
 import { DealerCorner } from './DealerCorner';
 import { GameHud } from './GameHud';
 import { useGame } from './GameProvider';
@@ -64,6 +67,7 @@ export function PlayShell() {
     <div className="table-felt flex min-h-screen flex-col">
       <GameHud />
       <main id="conteudo" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
+        <NicknamePrompt />
         <TutorialCoach />
         {/* `key` reinicia a animação de entrada a cada mudança de etapa. */}
         <div key={`${run?.status ?? 'start'}-${run?.ante ?? 0}-${run?.blindIndex ?? 0}`}>
@@ -71,6 +75,8 @@ export function PlayShell() {
         </div>
         <AbandonRun />
       </main>
+      <LiveScoreSync />
+      <AnswerSync />
       <DealerCorner />
       <Notice />
     </div>
