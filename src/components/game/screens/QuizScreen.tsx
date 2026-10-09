@@ -65,10 +65,10 @@ export function QuizScreen() {
                 mood={line.mood}
                 tone={table.tone}
                 lamp={table.scene.lamp}
-                className="h-36 w-[7.2rem]"
+                className="h-28 w-28"
               />
             </div>
-            <ul className="relative flex gap-1.5 lg:-mt-9" aria-label="Cartas jogadas">
+            <ul className="relative flex gap-1.5 lg:mt-1" aria-label="Cartas jogadas">
               {hand.map((card) => (
                 <li key={card.uid}>
                   <PlayingCard

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { HomeLeaderboard } from '@/components/leaderboard/HomeLeaderboard';
 import { HomeCta } from '@/components/game/HomeCta';
 import { PlayingCard } from '@/components/ui/PlayingCard';
+import { SlotMachine } from '@/components/ui/SlotMachine';
 import { Dealer } from '@/components/dealer/Dealer';
 import { TableEnvironment } from '@/components/tables/TableEnvironment';
 import { TABLES, type TableDef } from '@/content/tables';
@@ -48,27 +49,37 @@ export default function Home() {
 
           <HomeLeaderboard />
 
-          <TableEnvironment
-            table={TABLES[0] as TableDef}
-            className="mt-16 w-full max-w-2xl"
-            showLabel={false}
-            feltHeight="55%"
-          >
-            <div className="flex flex-col items-center pt-4">
-              <Dealer mood="idle" tone="warm" lamp={TABLES[0]?.scene.lamp} className="h-40 w-32" />
-              <ul
-                className="relative -mt-8 flex items-end justify-center gap-3 sm:gap-4"
-                aria-label="Exemplo de mão"
-              >
-                {(['condition', 'list', 'for'] as const).map((id, index) => (
-                  <li key={id} className={index === 1 ? 'sm:-translate-y-2' : ''}>
-                    <PlayingCard cardId={id} size="md" dealDelayMs={index * 90} />
-                  </li>
-                ))}
-              </ul>
-              <p className="my-4 font-mono text-xs text-ivory/80">LIST + FOR → ITERATOR</p>
-            </div>
-          </TableEnvironment>
+          {/* Cassino: caça-níqueis animados dos dois lados da mesa (só a partir de telas médias). */}
+          <div className="mt-16 flex w-full items-end justify-center gap-4 lg:gap-8">
+            <SlotMachine className="hidden md:block" offset={0} />
+            <TableEnvironment
+              table={TABLES[0] as TableDef}
+              className="w-full max-w-2xl"
+              showLabel={false}
+              feltHeight="55%"
+            >
+              <div className="flex flex-col items-center pt-4">
+                <Dealer
+                  mood="idle"
+                  tone="warm"
+                  lamp={TABLES[0]?.scene.lamp}
+                  className="h-32 w-32"
+                />
+                <ul
+                  className="relative -mt-2 flex items-end justify-center gap-3 sm:gap-4"
+                  aria-label="Exemplo de mão"
+                >
+                  {(['condition', 'list', 'for'] as const).map((id, index) => (
+                    <li key={id} className={index === 1 ? 'sm:-translate-y-2' : ''}>
+                      <PlayingCard cardId={id} size="md" dealDelayMs={index * 90} />
+                    </li>
+                  ))}
+                </ul>
+                <p className="my-4 font-mono text-xs text-ivory/80">LIST + FOR → ITERATOR</p>
+              </div>
+            </TableEnvironment>
+            <SlotMachine className="hidden md:block" offset={3.4} />
+          </div>
         </section>
 
         <section aria-label="O jogo" className="mt-24">
@@ -89,6 +100,10 @@ export default function Home() {
         <p>
           DEVBet é um jogo educativo. As fichas são virtuais: não há dinheiro real, apostas reais
           nem compras.
+        </p>
+        <p className="mx-auto mt-3 max-w-xl">
+          Arte: Pixel UI pack (Kenney), Casino Tileset (Jephed, Game Between The Lines), Poker Pack
+          (Screaming Brain Studios) e ícones Lucid (Midhil).
         </p>
       </footer>
     </>

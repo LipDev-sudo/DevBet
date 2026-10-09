@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { PixelIcon } from '@/components/ui/PixelIcon';
 import { JokerCard, JokerLesson } from '@/components/ui/JokerCard';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { ChipCount } from '@/components/ui/Chip';
@@ -129,6 +130,7 @@ export function ShopScreen() {
             dispatch({ type: 'reroll' });
           }}
         >
+          <PixelIcon name="redo" />
           Rolar de novo · {reroll}
         </Button>
       </div>

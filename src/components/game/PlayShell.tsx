@@ -1,6 +1,7 @@
 'use client';
 
 import { Wordmark } from '@/components/ui/Wordmark';
+import { DealerCorner } from './DealerCorner';
 import { GameHud } from './GameHud';
 import { useGame } from './GameProvider';
 import { AbandonRun } from './AbandonRun';
@@ -70,6 +71,7 @@ export function PlayShell() {
         </div>
         <AbandonRun />
       </main>
+      <DealerCorner />
       <Notice />
     </div>
   );

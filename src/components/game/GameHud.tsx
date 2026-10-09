@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 import { PlayingCard } from '@/components/ui/PlayingCard';
+import { Dealer } from '@/components/dealer/Dealer';
+import { moodForRun } from '@/engine/dealer';
 import { ChipCount } from '@/components/ui/Chip';
 import { Brand } from '@/components/ui/Brand';
+import { PixelIcon } from '@/components/ui/PixelIcon';
 import { Modal } from '@/components/ui/Modal';
 import { ANTES, currentBlind, JOKER_SLOTS } from '@/engine/blind';
 import { CARDS } from '@/engine/cards';
@@ -32,6 +35,7 @@ export function GameHud() {
               : `ante ${run.ante + 1}/${ANTES.length} · ${currentBlind(run).name}`}
           </span>
         </div>
+        <Dealer mood={moodForRun(run)} className="size-9 shrink-0 lg:hidden" />
         <dl className="flex flex-1 flex-wrap items-center justify-end gap-x-5 gap-y-1.5 sm:flex-none">
           <div className="flex items-center gap-2">
             <dt className="sr-only">Fichas</dt>
@@ -53,7 +57,10 @@ export function GameHud() {
                 : `Nível ${xp.level}. XP só desbloqueia cartas, e você já liberou todas.`
             }
           >
-            <dt className="table-label !tracking-[0.2em]">Nv {xp.level}</dt>
+            <dt className="table-label flex items-center gap-1 !tracking-[0.2em]">
+              <PixelIcon name="star" />
+              Nv {xp.level}
+            </dt>
             <dd className="w-20">
               <div
                 role="progressbar"
@@ -75,7 +82,10 @@ export function GameHud() {
             onClick={() => setDeckOpen(true)}
             className="table-label min-h-10 rounded-lg px-3 py-2 ring-1 ring-white/25 hover:bg-white/8"
           >
-            Baralho ({run.deck.length})
+            <span className="inline-flex items-center gap-1.5">
+              <PixelIcon name="stack" />
+              Baralho ({run.deck.length})
+            </span>
           </button>
         </dl>
       </div>

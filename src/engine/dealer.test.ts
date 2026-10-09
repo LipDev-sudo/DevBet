@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { AREAS } from '@/content/areas';
 import { getTableByArea, TABLES, tableLabel } from '@/content/tables';
-import { ANTES } from './blind';
-import { briefQuestion, reactToWrong, restingMood } from './dealer';
+import { ANTES, createRun, type RunState } from './blind';
+import { createProfile } from './progression';
+import { briefQuestion, DEALER_FRAME, moodForRun, reactToWrong, restingMood } from './dealer';
 
 describe('mesas', () => {
   it('cada área da trilha tem exatamente uma mesa, e a trilha passa por todas', () => {
@@ -39,5 +40,46 @@ describe('reações do Dealer', () => {
   it('descreve a pergunta de forma curta', () => {
     expect(briefQuestion(true)).toMatch(/High Table/);
     expect(briefQuestion(false).length).toBeLessThan(120);
+  });
+});
+
+describe('humor do Dealer segue a run', () => {
+  const run = (patch: Partial<RunState>): RunState => ({
+    ...(createRun('logica', 1, createProfile()).ok
+      ? (createRun('logica', 1, createProfile()) as { ok: true; state: RunState }).state
+      : ({} as RunState)),
+    ...patch,
+  });
+
+  it('sem run, pisca; na blind do boss, fica sério', () => {
+    expect(moodForRun(null)).toBe('wink');
+    expect(moodForRun(run({}))).toBe('idle');
+    expect(moodForRun(run({ ante: 0, blindIndex: 1 }))).toBe('boss');
+  });
+
+  it('na pergunta, fica nervoso com um erro e chora com dois', () => {
+    const base = run({ status: 'quiz' });
+    const round = (wrong: number[]) =>
+      ({
+        round: { play: { uids: [], questionId: 'q-variable-1', wrong } },
+      }) as unknown as Partial<RunState>;
+    expect(moodForRun({ ...base, ...round([]) })).toBe('thinking');
+    expect(moodForRun({ ...base, ...round([0]) })).toBe('nervous');
+    expect(moodForRun({ ...base, ...round([0, 1]) })).toBe('error');
+  });
+
+  it('fim da run: estrela na vitória, choro na derrota', () => {
+    expect(moodForRun(run({ status: 'won' }))).toBe('cheer');
+    expect(moodForRun(run({ status: 'lost' }))).toBe('error');
+    expect(moodForRun(run({ status: 'lost', endReason: 'abandoned' }))).toBe('shy');
+    expect(moodForRun(run({ status: 'shop' }))).toBe('wink');
+    expect(moodForRun(run({ status: 'cleared' }))).toBe('jackpot');
+  });
+
+  it('todo humor tem um quadro válido na folha de sprites', () => {
+    for (const frame of Object.values(DEALER_FRAME)) {
+      expect(frame).toBeGreaterThanOrEqual(0);
+      expect(frame).toBeLessThan(16);
+    }
   });
 });

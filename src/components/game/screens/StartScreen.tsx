@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { PixelIcon } from '@/components/ui/PixelIcon';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { xpProgress } from '@/engine/progression';
 import { STARTER_PACKS, TUTORIAL_PACK_ID } from '@/engine/blind';
@@ -93,6 +94,7 @@ export function StartScreen() {
             dispatch({ type: 'new-run', packId, seed: Math.floor(Math.random() * 2 ** 31) })
           }
         >
+          <PixelIcon name="game-controller" />
           Sentar à mesa
         </Button>
         <Link

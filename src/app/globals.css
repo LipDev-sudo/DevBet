@@ -3,6 +3,21 @@
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/700.css';
 
+@font-face {
+  font-family: 'PixelAE';
+  src: url('/fonts/PixelAE-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'PixelAE';
+  src: url('/fonts/PixelAE-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /*
  * Identidade DEVBet — mesa digital escura.
  * Base: preto/azul-marinho + off-white. Vinho/vermelho: risco, boss, vidas.
@@ -25,9 +40,10 @@
   --color-felt: #0b1220;
   --color-wood-2: #141b2b;
 
-  --font-sans: 'Inter Variable', system-ui, sans-serif;
-  --font-display: 'Inter Variable', system-ui, sans-serif;
+  --font-sans: 'PixelAE', 'Inter Variable', system-ui, sans-serif;
+  --font-display: 'PixelAE', 'Inter Variable', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-pixel: 'PixelAE', 'Inter Variable', system-ui, sans-serif;
 
   --animate-deal: deal 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-rise: rise 0.3s ease-out both;
@@ -122,7 +138,8 @@ body {
   background:
     radial-gradient(ellipse 70% 40% at 50% -5%, rgb(20 30 56 / 0.55), transparent 70%),
     var(--color-ink);
-  -webkit-font-smoothing: antialiased;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
 }
 
 ::selection {
@@ -199,10 +216,21 @@ body {
     border-bottom: 1px solid rgb(255 255 255 / 0.1);
   }
 
+  /*
+   * Interface em pixel art: toda borda é feita de "pixels" (sombras sólidas deslocadas), então os cantos ficam
+   * serrilhados como num jogo de 16 bits. `--pb` é a espessura do pixel.
+   */
   .panel {
-    border-radius: 10px;
+    --pb: 3px;
+    --pc: #3a4378;
+    border-radius: 0;
     background: var(--color-ink-3);
-    border: 1px solid rgb(255 255 255 / 0.1);
+    box-shadow:
+      0 calc(var(--pb) * -1) 0 0 var(--pc),
+      0 var(--pb) 0 0 var(--pc),
+      calc(var(--pb) * -1) 0 0 0 var(--pc),
+      var(--pb) 0 0 0 var(--pc),
+      0 calc(var(--pb) * 2) 0 0 rgb(0 0 0 / 0.4);
   }
 
   .hairline-gold {
@@ -210,183 +238,520 @@ body {
     background: rgb(255 255 255 / 0.1);
   }
 
-  /* Botões: planos, sem brilho */
+  /*
+   * Botões: os principais usam o 9-slice do Pixel UI pack (Kenney, CC0), ampliado 2× para os pixels ficarem nítidos;
+   * o "ghost" mantém o contorno serrilhado em CSS. Pressionado, o botão afunda (troca para a imagem "pressed").
+   */
   .btn {
+    --pb: 3px;
+    --bc: #000;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     min-height: 2.75rem;
-    padding: 0.6rem 1.4rem;
+    padding: 0.35rem 1rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    font-size: 0.78rem;
-    border-radius: 6px;
+    font-size: 0.8rem;
+    border-radius: 0;
     cursor: pointer;
-    transition:
-      transform 0.12s ease,
-      background-color 0.15s ease,
-      border-color 0.15s ease;
+    transition: transform 0.08s steps(2);
   }
   /* Indisponível mas clicável: tocar mostra o motivo no aviso (importante no celular, sem hover). */
-  .btn[aria-disabled='true'] {
-    cursor: not-allowed;
-    opacity: 0.4;
-  }
+  .btn[aria-disabled='true'],
   .btn:disabled {
     cursor: not-allowed;
     opacity: 0.4;
   }
-  .btn:not(:disabled):active {
-    transform: translateY(1px);
+  .btn-brass,
+  .btn-crimson,
+  .btn-felt {
+    border-style: solid;
+    border-width: 6px 6px 10px;
+    border-image-slice: 3 3 5 fill;
+    border-image-width: 6px 6px 10px;
+    border-image-repeat: stretch;
+    image-rendering: pixelated;
+    background: none;
+  }
+  .btn-brass:not(:disabled):hover,
+  .btn-crimson:not(:disabled):hover,
+  .btn-felt:not(:disabled):hover {
+    filter: brightness(1.1);
+  }
+  .btn-brass:not(:disabled):active,
+  .btn-crimson:not(:disabled):active,
+  .btn-felt:not(:disabled):active {
+    border-width: 6px;
+    border-image-slice: 3 fill;
+    border-image-width: 6px;
+    padding-top: calc(0.35rem + 4px);
   }
   .btn-brass {
-    color: var(--color-ink);
-    background: var(--color-ivory);
+    color: #3a2c00;
+    border-image-source: url('/ui/yellow.png');
   }
-  .btn-brass:not(:disabled):hover {
-    background: #fff;
+  .btn-brass:not(:disabled):active {
+    border-image-source: url('/ui/yellow-pressed.png');
   }
   .btn-crimson {
-    color: #fff;
-    background: var(--color-crimson);
+    color: #2b0f00;
+    border-image-source: url('/ui/red.png');
   }
-  .btn-crimson:not(:disabled):hover {
-    background: #a52334;
+  .btn-crimson:not(:disabled):active {
+    border-image-source: url('/ui/red-pressed.png');
   }
   .btn-felt {
-    color: var(--color-ivory);
-    background: rgb(255 255 255 / 0.08);
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.28);
+    color: #0e2b05;
+    border-image-source: url('/ui/green.png');
   }
-  .btn-felt:not(:disabled):hover {
-    background: rgb(255 255 255 / 0.14);
+  .btn-felt:not(:disabled):active {
+    border-image-source: url('/ui/green-pressed.png');
   }
   .btn-ghost {
+    --bc: #5a639c;
     color: var(--color-ivory);
     background: transparent;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16);
+    padding: 0.6rem 1.4rem;
+    box-shadow:
+      0 calc(var(--pb) * -1) 0 0 var(--bc),
+      0 var(--pb) 0 0 var(--bc),
+      calc(var(--pb) * -1) 0 0 0 var(--bc),
+      var(--pb) 0 0 0 var(--bc);
   }
   .btn-ghost:not(:disabled):hover {
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.4);
+    --bc: #aab0d8;
+    background: rgb(255 255 255 / 0.06);
+  }
+  .btn-ghost:not(:disabled):active {
+    transform: translateY(2px);
   }
   .btn-sm {
+    --pb: 2px;
     min-height: 2.25rem;
+    padding: 0.2rem 0.7rem;
+    font-size: 0.72rem;
+    border-width: 3px 3px 5px;
+    border-image-width: 3px 3px 5px;
+  }
+  .btn-sm.btn-ghost {
     padding: 0.35rem 0.9rem;
-    font-size: 0.7rem;
+    border-width: 0;
+  }
+  .btn-sm:not(:disabled):active {
+    border-width: 3px;
+    border-image-width: 3px;
+    padding-top: calc(0.2rem + 2px);
+  }
+  .btn-sm.btn-ghost:not(:disabled):active {
+    padding-top: 0.35rem;
+    border-width: 0;
   }
 
   /* Ficha: a moeda interna. Plana, com anel tracejado. */
+  /* Ficha de cassino: sprite do Poker Pack (Screaming Brain Studios, CC0); o número fica no topo branco. */
   .chip {
-    --chip-color: var(--color-gold);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.6rem;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    font-family: var(--font-mono);
+    --cx: 1;
+    --cy: 0;
+    display: inline-grid;
+    place-items: center;
+    width: 2rem;
+    aspect-ratio: 64 / 72;
+    padding-bottom: 14%;
+    background-image: url('/sprites/chips.png');
+    background-repeat: no-repeat;
+    background-size: 500% 200%;
+    background-position: calc(var(--cx) * 25%) calc(var(--cy) * 100%);
+    image-rendering: pixelated;
+    font-family: var(--font-pixel);
     font-weight: 700;
-    font-size: 0.72rem;
-    color: #12100a;
-    background: var(--chip-color);
-    box-shadow:
-      inset 0 0 0 3px var(--chip-color),
-      inset 0 0 0 4px rgb(0 0 0 / 0.35);
-    border: 2px dashed rgb(0 0 0 / 0.3);
+    font-size: 0.6rem;
+    line-height: 1;
+    color: #2a2a2a;
   }
   .chip-gold {
-    --chip-color: var(--color-gold);
+    --cx: 0;
+    --cy: 1;
   }
   .chip-green {
-    --chip-color: #2f8f69;
-    color: #fff;
+    --cx: 2;
+    --cy: 0;
   }
   .chip-black {
-    --chip-color: #1b2233;
-    color: var(--color-ivory);
-    border-color: rgb(255 255 255 / 0.25);
-  }
-  .chip:not(.chip-gold):not(.chip-green):not(.chip-black) {
-    --chip-color: var(--color-crimson);
-    color: #fff;
+    --cx: 4;
+    --cy: 0;
   }
 
   /* Carta: objeto físico. Fundo escuro, borda fina e um filete interno, como cartas de cassino. */
-  .playing-card {
+  /*
+   * Cartas em pixel art: moldura azul-marinho com cantos serrilhados, papel creme, naipes de baralho e de código.
+   * A unidade `--u` (3.4% da largura da carta) é o "pixel" da moldura e escala com o tamanho.
+   */
+  .playing-card,
+  .card-back {
+    --u: 3.4cqw;
+    --px-ink: #1b1f45;
+    --px-paper: #f5f0e3;
+    --px-gold: #e3b341;
     position: relative;
     aspect-ratio: 5 / 7;
-    border-radius: 10px;
-    color: var(--color-ivory);
-    background: linear-gradient(165deg, #131c30, #0b1220 70%);
-    border: 1px solid rgb(255 255 255 / 0.2);
-    box-shadow:
-      0 1px 0 rgb(255 255 255 / 0.06) inset,
-      0 10px 18px -10px rgb(0 0 0 / 0.85);
-    transition:
-      transform 0.15s ease,
-      border-color 0.15s ease;
+    font-family: var(--font-pixel);
+    color: var(--px-ink);
+    filter: drop-shadow(0 0.2rem 0 rgb(0 0 0 / 0.55));
+    transition: transform 0.12s steps(3);
   }
-  .playing-card::before {
-    content: '';
+  .pc-frame {
     position: absolute;
-    inset: 4px;
-    border-radius: 7px;
-    border: 1px solid rgb(255 255 255 / 0.07);
-    pointer-events: none;
+    inset: 0;
+    background: var(--pc-frame, var(--px-ink));
+    clip-path: polygon(
+      0 calc(var(--u) * 2),
+      var(--u) calc(var(--u) * 2),
+      var(--u) var(--u),
+      calc(var(--u) * 2) var(--u),
+      calc(var(--u) * 2) 0,
+      calc(100% - var(--u) * 2) 0,
+      calc(100% - var(--u) * 2) var(--u),
+      calc(100% - var(--u)) var(--u),
+      calc(100% - var(--u)) calc(var(--u) * 2),
+      100% calc(var(--u) * 2),
+      100% calc(100% - var(--u) * 2),
+      calc(100% - var(--u)) calc(100% - var(--u) * 2),
+      calc(100% - var(--u)) calc(100% - var(--u)),
+      calc(100% - var(--u) * 2) calc(100% - var(--u)),
+      calc(100% - var(--u) * 2) 100%,
+      calc(var(--u) * 2) 100%,
+      calc(var(--u) * 2) calc(100% - var(--u)),
+      var(--u) calc(100% - var(--u)),
+      var(--u) calc(100% - var(--u) * 2),
+      0 calc(100% - var(--u) * 2)
+    );
+  }
+  .pc-face {
+    position: absolute;
+    inset: var(--u);
+    background: var(--px-paper);
+    clip-path: polygon(
+      0 var(--u),
+      var(--u) var(--u),
+      var(--u) 0,
+      calc(100% - var(--u)) 0,
+      calc(100% - var(--u)) var(--u),
+      100% var(--u),
+      100% calc(100% - var(--u)),
+      calc(100% - var(--u)) calc(100% - var(--u)),
+      calc(100% - var(--u)) 100%,
+      var(--u) 100%,
+      var(--u) calc(100% - var(--u)),
+      0 calc(100% - var(--u))
+    );
   }
   .playing-card[data-rarity='rare'] {
-    border-color: rgb(201 162 74 / 0.8);
+    --pc-frame: #5a3fb8;
   }
-  .playing-card[data-rarity='rare']::before {
-    border-color: rgb(201 162 74 / 0.35);
-  }
-  /* Lendária: acabamento folheado fixo, sem brilho animado. */
   .playing-card[data-rarity='legendary'] {
-    border-color: var(--color-gold-light);
+    --pc-frame: #c9921a;
+  }
+  .playing-card[data-rarity='legendary'] .pc-face {
     background:
-      linear-gradient(118deg, transparent 32%, rgb(230 199 121 / 0.1) 48%, transparent 64%),
-      linear-gradient(165deg, #1a1a26, #0d1220 70%);
+      linear-gradient(118deg, transparent 38%, rgb(227 179 65 / 0.22) 50%, transparent 62%),
+      var(--px-paper);
   }
-  .playing-card[data-rarity='legendary']::before {
-    inset: 3px;
-    border-width: 1.5px;
-    border-color: rgb(230 199 121 / 0.55);
-  }
-  .playing-card[data-boosted='true']:not([data-rarity='legendary']) {
-    box-shadow:
-      0 0 0 1px rgb(230 199 121 / 0.45),
-      0 10px 18px -10px rgb(0 0 0 / 0.85);
+  .playing-card[data-boosted='true'] {
+    --pc-frame: var(--px-gold);
   }
   .playing-card[data-interactive='true']:hover {
     transform: translateY(-6px);
-    border-color: var(--color-ivory);
   }
   .playing-card[data-selected='true'] {
+    --pc-frame: var(--px-gold);
     transform: translateY(-16px);
-    border-color: var(--color-gold-light);
-    box-shadow:
-      0 0 0 2px rgb(230 199 121 / 0.75),
-      0 14px 22px -10px rgb(0 0 0 / 0.9);
+    filter: drop-shadow(0 0 0 var(--px-gold)) drop-shadow(0 0.35rem 0 rgb(0 0 0 / 0.55));
   }
   .playing-card[data-debuffed='true'] {
-    filter: grayscale(1) brightness(0.55);
+    filter: grayscale(1) brightness(0.55) drop-shadow(0 0.2rem 0 rgb(0 0 0 / 0.55));
   }
+
+  .pc-index {
+    position: absolute;
+    left: 8cqw;
+    top: 7cqw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2cqw;
+    line-height: 1;
+  }
+  .pc-index-end {
+    left: auto;
+    top: auto;
+    right: 8cqw;
+    bottom: 22cqw;
+    transform: rotate(180deg);
+  }
+  .pc-rank {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .pc-rank[data-size='l'] {
+    font-size: 13cqw;
+  }
+  .pc-rank[data-size='m'] {
+    font-size: 11cqw;
+  }
+  .pc-rank[data-size='s'] {
+    font-size: 8.6cqw;
+  }
+  .pc-suit-s {
+    width: 8.5cqw;
+    height: auto;
+  }
+  .pc-suit-l {
+    width: 30cqw;
+    height: auto;
+  }
+  .pc-rare {
+    position: absolute;
+    right: 8cqw;
+    top: 7cqw;
+    display: flex;
+    align-items: center;
+    gap: 2cqw;
+    font-size: 8cqw;
+    font-weight: 700;
+    color: #b8860b;
+  }
+  .pc-star {
+    width: 8cqw;
+    height: auto;
+    color: #e3a21a;
+  }
+  .pc-center {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 13cqw;
+    bottom: 26cqw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3.5cqw;
+    padding: 0 6cqw;
+  }
+  .pc-name {
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .pc-name[data-size='s'] {
+    font-size: 15cqw;
+  }
+  .pc-name[data-size='m'] {
+    font-size: 12cqw;
+  }
+  .pc-name[data-size='l'] {
+    font-size: 9.6cqw;
+  }
+  .pc-tag {
+    font-size: 6.6cqw;
+    line-height: 1;
+    color: #5b6089;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .pc-band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 20cqw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5cqw;
+    background: var(--px-ink);
+    color: var(--px-paper);
+    font-size: 8.4cqw;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.04em;
+  }
+  .pc-band span:last-child {
+    color: #aab0d8;
+  }
+  .pc-band[data-boosted='true'],
+  .pc-band[data-boosted='true'] span:last-child {
+    color: var(--px-gold);
+  }
+
+  /* Verso da carta: o baralho do Poker Pack (Screaming Brain Studios, CC0), versão azul. */
+  .card-back {
+    background: url('/sprites/card-back.png') 100% 0 / 200% 100% no-repeat;
+    image-rendering: pixelated;
+  }
+
+  /*
+   * Joker: ficha escura em formato de ingresso (com entalhes nas laterais), retrato pixelado próprio e uma
+   * etiqueta colorida com o efeito. Bem diferente da carta de papel creme.
+   */
   .joker-card {
-    min-height: 6.2rem;
-    background: linear-gradient(165deg, #1c1830, #120f20 70%);
-    border: 1px solid rgb(201 162 74 / 0.55);
-    box-shadow: 0 8px 16px -10px rgb(0 0 0 / 0.85);
-    transition:
-      transform 0.15s ease,
-      box-shadow 0.15s ease;
+    --u: 3cqw;
+    --jk-a: #a98bff;
+    --jk-b: #ffd54a;
+    --jk-bg1: #251a4a;
+    --jk-bg2: #2d205a;
+    position: relative;
+    aspect-ratio: 4 / 5.6;
+    container-type: inline-size;
+    font-family: var(--font-pixel);
+    color: #fff4dc;
+    filter: drop-shadow(0 0.2rem 0 rgb(0 0 0 / 0.55));
+    transition: transform 0.12s steps(3);
+  }
+  .jk-frame {
+    position: absolute;
+    inset: 0;
+    background: #e65a9b;
+    clip-path: polygon(
+      0 calc(var(--u) * 3),
+      var(--u) calc(var(--u) * 3),
+      var(--u) calc(var(--u) * 2),
+      calc(var(--u) * 2) calc(var(--u) * 2),
+      calc(var(--u) * 2) var(--u),
+      calc(var(--u) * 3) var(--u),
+      calc(var(--u) * 3) 0,
+      calc(100% - var(--u) * 3) 0,
+      calc(100% - var(--u) * 3) var(--u),
+      calc(100% - var(--u) * 2) var(--u),
+      calc(100% - var(--u) * 2) calc(var(--u) * 2),
+      calc(100% - var(--u)) calc(var(--u) * 2),
+      calc(100% - var(--u)) calc(var(--u) * 3),
+      100% calc(var(--u) * 3),
+      100% 44%,
+      calc(100% - var(--u) * 1.5) 44%,
+      calc(100% - var(--u) * 1.5) 56%,
+      100% 56%,
+      100% calc(100% - var(--u) * 3),
+      calc(100% - var(--u)) calc(100% - var(--u) * 3),
+      calc(100% - var(--u)) calc(100% - var(--u) * 2),
+      calc(100% - var(--u) * 2) calc(100% - var(--u) * 2),
+      calc(100% - var(--u) * 2) calc(100% - var(--u)),
+      calc(100% - var(--u) * 3) calc(100% - var(--u)),
+      calc(100% - var(--u) * 3) 100%,
+      calc(var(--u) * 3) 100%,
+      calc(var(--u) * 3) calc(100% - var(--u)),
+      calc(var(--u) * 2) calc(100% - var(--u)),
+      calc(var(--u) * 2) calc(100% - var(--u) * 2),
+      var(--u) calc(100% - var(--u) * 2),
+      var(--u) calc(100% - var(--u) * 3),
+      0 calc(100% - var(--u) * 3),
+      0 56%,
+      calc(var(--u) * 1.5) 56%,
+      calc(var(--u) * 1.5) 44%,
+      0 44%
+    );
+  }
+  .joker-card[data-rarity='rare'] .jk-frame {
+    background: #e3b341;
+  }
+  .jk-face {
+    position: absolute;
+    inset: var(--u);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3cqw;
+    padding: 5cqw 6cqw 6cqw;
+    background: #1c1740;
+    clip-path: polygon(
+      0 var(--u),
+      var(--u) var(--u),
+      var(--u) 0,
+      calc(100% - var(--u)) 0,
+      calc(100% - var(--u)) var(--u),
+      100% var(--u),
+      100% calc(100% - var(--u)),
+      calc(100% - var(--u)) calc(100% - var(--u)),
+      calc(100% - var(--u)) 100%,
+      var(--u) 100%,
+      var(--u) calc(100% - var(--u)),
+      0 calc(100% - var(--u))
+    );
+  }
+  .jk-label {
+    display: flex;
+    align-items: center;
+    gap: 3cqw;
+    font-size: 8.5cqw;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    line-height: 1;
+    color: var(--jk-b);
+  }
+  .jk-star {
+    width: 7cqw;
+    height: auto;
+  }
+  .jk-window {
+    width: 66%;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    background: conic-gradient(
+        var(--jk-bg1) 25%,
+        var(--jk-bg2) 0 50%,
+        var(--jk-bg1) 0 75%,
+        var(--jk-bg2) 0
+      )
+      0 0 / 12cqw 12cqw;
+    box-shadow:
+      0 0 0 1.5cqw var(--jk-a),
+      0 0 0 3cqw #120a24;
+    margin-top: 1.5cqw;
+  }
+  .jk-sprite {
+    width: 86%;
+    height: 86%;
+  }
+  .jk-name {
+    margin-top: 2cqw;
+    font-size: 9.4cqw;
+    font-weight: 700;
+    line-height: 1.05;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .jk-tag {
+    font-size: 6.6cqw;
+    line-height: 1;
+    color: var(--jk-b);
+    text-align: center;
+  }
+  .jk-effect {
+    margin-top: auto;
+    padding: 2.5cqw 5cqw;
+    font-size: 8.8cqw;
+    font-weight: 700;
+    line-height: 1;
+    color: #120a24;
+    background: #ff4d6d;
+  }
+  .jk-effect[data-kind='chips'] {
+    background: #3aa0ff;
+  }
+  .jk-effect[data-kind='xmult'] {
+    background: #ffd54a;
   }
   .joker-card[data-active='true'] {
     transform: translateY(-10px) scale(1.06);
-    box-shadow:
-      0 0 0 2px rgb(230 199 121 / 0.9),
-      0 0 22px rgb(230 199 121 / 0.45);
+  }
+  .joker-card[data-active='true'] .jk-frame {
+    background: #fff3a8;
   }
   .score-pop {
     animation: score-pop 0.45s ease-out both;
@@ -405,13 +770,6 @@ body {
       opacity: 1;
     }
   }
-  .card-back {
-    aspect-ratio: 5 / 7;
-    border-radius: 10px;
-    background: repeating-linear-gradient(45deg, #121a2b 0 6px, #0d1424 6px 12px);
-    border: 1px solid rgb(255 255 255 / 0.16);
-  }
-
   .table-label {
     font-weight: 600;
     letter-spacing: 0.16em;
@@ -426,51 +784,12 @@ body {
 .card-back {
   container-type: inline-size;
 }
-.pc-top {
-  font-size: 6.6cqw;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  line-height: 1;
-}
-.pc-name {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 15cqw;
-  line-height: 1.05;
-  text-align: center;
-  letter-spacing: -0.02em;
-  overflow-wrap: normal;
-}
-.pc-name[data-size='s'] {
-  font-size: 21cqw;
-}
-.pc-name[data-size='m'] {
-  font-size: 15.5cqw;
-}
-.pc-name[data-size='l'] {
-  font-size: 12.5cqw;
-}
-.pc-tag {
-  font-size: 7.4cqw;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: var(--color-ivory-dim);
-  text-align: center;
-}
-.pc-effect {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 9cqw;
-  text-align: center;
-}
 
 /* Tutorial: destaque discreto no elemento da lição (sem escurecer a tela nem bloquear cliques). */
 .tutorial-spot {
-  outline: 1px solid rgb(236 230 216 / 0.8);
+  outline: 2px solid rgb(236 230 216 / 0.8);
   outline-offset: 5px;
-  border-radius: 10px;
+  border-radius: 0;
   animation: spot-pulse 2.4s ease-in-out infinite;
 }
 @keyframes spot-pulse {
@@ -485,7 +804,7 @@ body {
 .tutorial-dot {
   width: 0.4rem;
   height: 0.4rem;
-  border-radius: 9999px;
+  border-radius: 0;
   background: var(--color-ivory);
   animation: spot-pulse-dot 1.6s ease-in-out infinite;
 }
@@ -502,4 +821,116 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgb(255 255 255 / 0.25) transparent;
+}
+
+/* Dealer em pixel art (na camada de componentes, para as utilidades do Tailwind poderem sobrescrever). */
+@layer components {
+  .dealer {
+    container-type: size;
+    display: grid;
+    place-items: end center;
+  }
+}
+.dealer-sprite {
+  width: min(100cqw, 100cqh);
+  aspect-ratio: 1;
+  background-image: url('/sprites/dealer.png');
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
+  background-position: calc(var(--col) * 100% / 3) calc(var(--row) * 100% / 3);
+  image-rendering: pixelated;
+  animation:
+    dealer-pop 0.3s steps(4) both,
+    dealer-bob 1.4s steps(2) 0.3s infinite;
+  filter: drop-shadow(0 0.12rem 0 rgb(0 0 0 / 0.5));
+}
+.dealer[data-mood='boss'] .dealer-sprite {
+  filter: hue-rotate(-24deg) saturate(1.5) drop-shadow(0 0.12rem 0 rgb(0 0 0 / 0.5));
+}
+@keyframes dealer-pop {
+  0% {
+    transform: scale(0.7) translateY(0.4rem);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes dealer-bob {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(-3%);
+  }
+}
+.dealer-corner {
+  position: fixed;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 30;
+  pointer-events: none;
+}
+@media (max-width: 1023px) {
+  .dealer-corner {
+    display: none;
+  }
+}
+
+/* Nada arredondado: tudo é quadradinho (os cantos serrilhados vêm das sombras e do clip-path). */
+[class*='rounded'] {
+  border-radius: 0 !important;
+}
+img,
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* ----------------------------------------------------------------- caça-níquel animado */
+.slot-machine {
+  --s: 2;
+  width: calc(32px * var(--s));
+  height: calc(48px * var(--s));
+  flex: none;
+  background: url('/sprites/slots.png') 0 0 / calc(256px * var(--s)) calc(256px * var(--s))
+    no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0.25rem 0 rgb(0 0 0 / 0.5));
+  animation:
+    slot-x 1s steps(8) var(--off, 0s) infinite,
+    slot-y 8s steps(5) var(--off, 0s) infinite;
+}
+@media (min-width: 1024px) {
+  .slot-machine {
+    --s: 3;
+  }
+}
+@keyframes slot-x {
+  to {
+    background-position-x: calc(-256px * var(--s));
+  }
+}
+@keyframes slot-y {
+  to {
+    background-position-y: calc(-240px * var(--s));
+  }
+}
+
+/* Botão de fechar do diálogo: sprite do pacote Buttons. */
+.modal-close {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  background: url('/ui/close.png') center / 32px 32px no-repeat;
+  image-rendering: pixelated;
+  cursor: pointer;
+}
+.modal-close:hover {
+  filter: brightness(1.2);
+}
+.modal-close:active {
+  background-image: url('/ui/close-pressed.png');
 }

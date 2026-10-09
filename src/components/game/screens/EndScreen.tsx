@@ -45,7 +45,7 @@ export function EndScreen() {
             mood={won ? 'success' : 'serious'}
             tone="severe"
             lamp={highTable.scene.lamp}
-            className="mt-4 h-32 w-[6.4rem]"
+            className="mt-4 h-28 w-28"
           />
           <DealerDialogue
             avatar={false}

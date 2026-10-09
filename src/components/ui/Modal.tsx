@@ -46,14 +46,7 @@ export function Modal({
             <h2 id={titleId} className="gold-text font-display text-2xl font-black">
               {title}
             </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Fechar"
-              className="grid size-9 shrink-0 place-items-center rounded-lg text-xl text-ivory-dim hover:text-ivory"
-            >
-              ×
-            </button>
+            <button type="button" onClick={onClose} aria-label="Fechar" className="modal-close" />
           </div>
           {children}
         </div>

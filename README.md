@@ -110,3 +110,11 @@ A integração contínua (`.github/workflows/ci.yml`) roda format, lint, typeche
 ## Evolução prevista
 
 A persistência fica atrás de `SaveRepository` (`src/lib/storage.ts`), o que permite adicionar cloud saves sem mexer nas regras do jogo. Mais perguntas e novos jokers entram só como dados (`src/content/quiz.ts`, `src/engine/jokers.ts`).
+
+## Créditos de arte
+
+- **Fonte:** PixelAE (Ahmed Essam), em `public/fonts`. Confira a licença de uso antes de redistribuir o projeto.
+- **Ícones:** Lucid Icons, de Midhil ([Leo Red]), licença CC0, em `public/icons` (licença em `public/icons/LICENSE-Lucid.txt`).
+- **Dealer:** folha de emojis em pixel art (`public/sprites/dealer.png`, 16 quadros de 24 px) fornecida pelo autor do projeto; a folha original traz a assinatura "ihib". Confirme a licença com a artista antes de publicar.
+- **Botões, caça-níqueis, fichas e verso das cartas:** Pixel UI pack (Kenney, CC0), Casino Tileset (Jephed, Game Between The Lines; uso livre com crédito), Poker Pack (Screaming Brain Studios, CC0) e pacote de botões fornecido pelo autor do projeto. Arquivos em `public/ui` e `public/sprites`.
+- Cartas, naipes e jokers são desenhados em código (`src/components/ui/PixelSuit.tsx`, `jokerArt.ts`).

@@ -1,6 +1,7 @@
 import { cardEffect, getCard, RARITY_LABEL } from '@/engine/cards';
 import { CARD_MULT_SCALE } from '@/engine/handscore';
-import { CATEGORY_LABEL, type CardId, type CategoryId } from '@/engine/types';
+import { CATEGORY_LABEL, type CardId } from '@/engine/types';
+import { PixelStar, PixelSuit, SUIT_BY_CATEGORY } from './PixelSuit';
 
 export type CardSize = 'xs' | 'sm' | 'md' | 'lg' | 'fluid';
 
@@ -13,35 +14,27 @@ const SIZE_CLASS: Record<CardSize, string> = {
   fluid: 'w-full max-w-24 sm:w-28',
 };
 
-/** Marca da categoria: forma simples e funcional, para reconhecer o naipe conceitual de relance. */
-function CategoryMark({ category }: { category: CategoryId }) {
-  return (
-    <svg
-      viewBox="0 0 12 12"
-      aria-hidden="true"
-      className="size-[9cqw] shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.300"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {category === 'fundamentos' && <rect x="2" y="2" width="8" height="8" rx="1.200" />}
-      {category === 'controle' && <path d="M6 11 V6.500 M6 6.500 L2.500 2 M6 6.500 L9.500 2" />}
-      {category === 'estruturas' && (
-        <path d="M2 2 H5 V5 H2 Z M7 2 H10 V5 H7 Z M2 7 H5 V10 H2 Z M7 7 H10 V10 H7 Z" />
-      )}
-      {category === 'funcoes' && <path d="M4 2 Q1.500 6 4 10 M8 2 Q10.500 6 8 10" />}
-      {category === 'algoritmos' && <path d="M6 2 L10.500 10 H1.500 Z" />}
-      {category === 'debug' && (
-        <>
-          <circle cx="6" cy="6" r="4" />
-          <circle cx="6" cy="6" r="1" fill="currentColor" />
-        </>
-      )}
-    </svg>
-  );
-}
+/** O "valor" da carta no canto, como o A, 2, 3… de um baralho: aqui é o símbolo do conceito em código. */
+const RANK_GLYPH: Record<CardId, string> = {
+  variable: 'x=',
+  operator: '+-',
+  boolean: 'T/F',
+  condition: 'if',
+  for: 'for',
+  while: 'do',
+  list: '[]',
+  dictionary: '{}',
+  set: '{,}',
+  function: 'f()',
+  parameter: '(a)',
+  return: '=>',
+  recursion: 'f(f)',
+  search: 'O(n)',
+  'unit-test': 'ok',
+  breakpoint: 'bp',
+};
+
+const glyphSize = (glyph: string) => (glyph.length <= 2 ? 'l' : glyph.length === 3 ? 'm' : 's');
 
 /** Multiplicador como o placar o aplica (0.2 de efeito vale +0.8 de mult), sem zeros sobrando. */
 export const fmtMult = (mult: number) => String(Math.round(mult * CARD_MULT_SCALE * 10) / 10);
@@ -79,11 +72,14 @@ export function PlayingCard({
   const base = `${SIZE_CLASS[size]} shrink-0 ${dealDelayMs === undefined ? '' : 'animate-deal'} ${className}`;
 
   if (faceDown) {
-    return <div className={`card-back ${base}`} style={style} aria-label="Carta virada" />;
+    return (
+      <div className={`card-back ${base}`} style={style} role="img" aria-label="Carta virada" />
+    );
   }
 
   const card = getCard(cardId);
   const effect = cardEffect(card, upgrade, boosted);
+  const suit = SUIT_BY_CATEGORY[card.category];
   const interactive = Boolean(onClick);
   const Tag = interactive ? 'button' : 'div';
 
@@ -102,33 +98,41 @@ export function PlayingCard({
       className={`playing-card text-left ${base}`}
       style={style}
     >
-      <div className="relative z-10 flex h-full flex-col justify-between p-[9cqw]">
-        <div className="pc-top flex items-start justify-between gap-1">
-          <span className="flex items-center gap-[2cqw] text-ivory-dim">
-            <CategoryMark category={card.category} />
-            {CATEGORY_LABEL[card.category]}
-          </span>
+      <div className="pc-frame">
+        <div className="pc-face">
+          <div className="pc-index">
+            <span className="pc-rank" data-size={glyphSize(RANK_GLYPH[cardId])}>
+              {RANK_GLYPH[cardId]}
+            </span>
+            <PixelSuit suit={suit} className="pc-suit-s" />
+          </div>
           {(card.rarity !== 'common' || upgrade > 0) && (
-            <span className="text-gold">
-              {upgrade > 0 ? `+${upgrade}` : ''}
-              {card.rarity === 'legendary' ? ' ◆' : card.rarity === 'rare' ? ' ◇' : ''}
+            <span className="pc-rare">
+              {upgrade > 0 && <span>+{upgrade}</span>}
+              {card.rarity !== 'common' && <PixelStar className="pc-star" />}
             </span>
           )}
-        </div>
 
-        <div className="flex flex-col items-center gap-[5cqw]">
-          <span className="pc-name" data-size={nameSize(card.name)}>
-            {card.name}
-          </span>
-          <span className="pc-tag">{card.tag}</span>
-        </div>
-
-        <div className="pc-effect">
-          <div className={boosted ? 'text-gold-light' : 'text-ivory'}>
-            +{fmtMult(effect.mult)} MULT{boosted ? ' ×2' : ''}
+          <div className="pc-center">
+            <PixelSuit suit={suit} className="pc-suit-l" />
+            <span className="pc-name" data-size={nameSize(card.name)}>
+              {card.name}
+            </span>
+            <span className="pc-tag">{card.tag}</span>
           </div>
-          <div className={boosted ? 'text-gold-light' : 'text-ivory-dim'}>
-            +{effect.chips} FICHAS
+
+          <div className="pc-index pc-index-end" aria-hidden="true">
+            <span className="pc-rank" data-size={glyphSize(RANK_GLYPH[cardId])}>
+              {RANK_GLYPH[cardId]}
+            </span>
+            <PixelSuit suit={suit} className="pc-suit-s" />
+          </div>
+
+          <div className="pc-band" data-boosted={boosted}>
+            <span>
+              +{fmtMult(effect.mult)} MULT{boosted ? ' ×2' : ''}
+            </span>
+            <span>+{effect.chips} FICHAS</span>
           </div>
         </div>
       </div>

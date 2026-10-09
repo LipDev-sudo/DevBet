@@ -104,13 +104,13 @@ async function tabTo(page, re, label, { max = 40 } = {}) {
     /Precisão atual/.test(await page.locator('body').innerText()),
     'Pergunta: o Dealer mostra a precisão depois do erro',
   );
-  await tabTo(page, /^[ABCD]\s/, 'Pergunta: de volta às alternativas');
-  const target = ['A', 'B', 'C', 'D'][answer];
-  for (let i = 0; i < 4; i++) {
-    const cur = await describe(page);
-    if (cur.name.startsWith(target + ' ')) break;
-    await page.keyboard.press('Tab');
-  }
+  // A alternativa certa pode estar antes ou depois da errada: leva o foco direto a ela (sem depender da ordem).
+  await page.locator('[data-tutorial="quiz"] ul button').nth(answer).focus();
+  d = await describe(page);
+  check(
+    new RegExp(`^${['A', 'B', 'C', 'D'][answer]}\\s`).test(d.name) && d.visible,
+    `Pergunta: alternativa certa com foco visível (${d.name.slice(0, 30)})`,
+  );
   await page.keyboard.press('Enter');
   await page
     .getByRole('button', { name: /Continuar|Blind vencida|Suas mãos acabaram/ })

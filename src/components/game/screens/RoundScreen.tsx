@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { JokerCard } from '@/components/ui/JokerCard';
+import { PixelIcon } from '@/components/ui/PixelIcon';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { getCard } from '@/engine/cards';
 import {
@@ -141,25 +142,25 @@ export function JokerRow({ run, activeId }: { run: RunState; activeId?: string |
                       aria-label={`Mover ${id} para a esquerda`}
                       disabled={index === 0}
                       onClick={() => dispatch({ type: 'move-joker', from: index, to: index - 1 })}
-                      className="min-h-9 min-w-9 rounded text-xs text-ivory-dim ring-1 ring-white/15 hover:text-ivory disabled:opacity-30"
+                      className="grid min-h-9 min-w-9 place-items-center text-ivory-dim ring-2 ring-white/20 hover:text-ivory disabled:opacity-30"
                     >
-                      ←
+                      <PixelIcon name="chevron-arrow-left" />
                     </button>
                     <button
                       type="button"
                       aria-label={`Mover ${id} para a direita`}
                       disabled={index === run.jokers.length - 1}
                       onClick={() => dispatch({ type: 'move-joker', from: index, to: index + 1 })}
-                      className="min-h-9 min-w-9 rounded text-xs text-ivory-dim ring-1 ring-white/15 hover:text-ivory disabled:opacity-30"
+                      className="grid min-h-9 min-w-9 place-items-center text-ivory-dim ring-2 ring-white/20 hover:text-ivory disabled:opacity-30"
                     >
-                      →
+                      <PixelIcon name="chevron-arrow-right" />
                     </button>
                   </div>
                 </div>
               ) : (
                 <div
                   aria-label="Espaço de joker vazio"
-                  className="grid min-h-[6.2rem] w-full place-items-center rounded-lg border border-dashed border-white/15 text-[0.65rem] text-ivory-dim/60 sm:w-28"
+                  className="grid aspect-[4/5.6] w-full place-items-center rounded-lg border border-dashed border-white/15 text-[0.65rem] text-ivory-dim/60 sm:w-28"
                 >
                   vazio
                 </div>
@@ -296,6 +297,7 @@ export function RoundScreen() {
               setSelected([]);
             }}
           >
+            <PixelIcon name="play" />
             Jogar mão
           </Button>
           <Button
@@ -309,6 +311,7 @@ export function RoundScreen() {
               setSelected([]);
             }}
           >
+            <PixelIcon name="redo" />
             Descartar ({round.discardsLeft}/{rule?.noDiscards ? 0 : BASE_DISCARDS})
           </Button>
           <div className="flex items-center gap-1" role="group" aria-label="Ordenar a mão">

@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/Button';
+import { PixelIcon } from '@/components/ui/PixelIcon';
 import { ANTES, currentBlind } from '@/engine/blind';
 import { useGame } from '../GameProvider';
 
@@ -51,6 +52,7 @@ export function ClearedScreen() {
 
       <div className="mt-6">
         <Button data-tutorial="cash-out" onClick={() => dispatch({ type: 'cash-out' })}>
+          <PixelIcon name={last ? 'star' : 'cart'} />
           {last ? 'Concluir run' : 'Ir à loja'}
         </Button>
       </div>

@@ -1,9 +1,42 @@
 import { effectLabel, getJoker } from '@/engine/jokers';
-import { RARITY_LABEL } from '@/engine/cards';
+import { JOKER_ART, SPRITE_COLOR } from './jokerArt';
+import { PixelStar } from './PixelSuit';
+
+/** Sprite pixelado do joker: um caminho SVG por cor, para ficar nítido em qualquer tamanho. */
+function JokerSprite({ id }: { id: string }) {
+  const art = JOKER_ART[id];
+  if (!art) return null;
+  const paths = new Map<string, string>();
+  art.rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (ch === '.') return;
+      paths.set(ch, `${paths.get(ch) ?? ''}M${x} ${y}h1v1h-1z`);
+    });
+  });
+  const width = Math.max(...art.rows.map((row) => row.length));
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${art.rows.length}`}
+      aria-hidden="true"
+      focusable="false"
+      shapeRendering="crispEdges"
+      className="jk-sprite"
+    >
+      {[...paths.entries()].map(([ch, d]) => (
+        <path
+          key={ch}
+          d={d}
+          fill={ch === 'a' ? art.a : ch === 'b' ? art.b : (SPRITE_COLOR[ch] ?? '#fff')}
+        />
+      ))}
+    </svg>
+  );
+}
 
 /**
- * Joker = idioma de Python. O cartão mostra o efeito, quando dispara e um exemplo real do código que o ativa.
- * `active` acende o cartão quando ele dispara durante a pontuação.
+ * Joker = idioma de Python. Diferente das cartas (papel creme com naipes), o joker é uma ficha escura em formato
+ * de ingresso, com um retrato pixelado próprio, faixa com o nome e uma etiqueta colorida com o efeito.
+ * `active` acende o joker quando ele dispara durante a pontuação.
  */
 export function JokerCard({
   id,
@@ -17,30 +50,41 @@ export function JokerCard({
   className?: string;
 }) {
   const joker = getJoker(id);
+  const art = JOKER_ART[id];
+  const style = art
+    ? ({
+        '--jk-a': art.a,
+        '--jk-b': art.b,
+        '--jk-bg1': art.bg[0],
+        '--jk-bg2': art.bg[1],
+      } as React.CSSProperties)
+    : undefined;
   return (
     <div
       data-joker={id}
       data-active={active}
       data-rarity={joker.rarity}
       aria-label={`Joker ${joker.name}: ${effectLabel(joker.effect)}. ${joker.when}`}
-      className={`joker-card relative flex flex-col justify-between rounded-lg p-2.5 text-left ${compact ? 'w-full sm:w-28' : 'w-40'} ${className}`}
+      style={style}
+      className={`joker-card ${compact ? 'w-full sm:w-28' : 'w-40'} ${className}`}
     >
-      <div>
-        <p className="text-[0.55rem] font-bold tracking-[0.16em] text-ivory-dim uppercase sm:text-[0.6rem]">
-          Joker · {RARITY_LABEL[joker.rarity]}
-        </p>
-        <p
-          className={`mt-1 font-mono leading-tight font-bold text-ivory ${compact ? 'text-[0.7rem] sm:text-xs' : 'text-sm'}`}
-        >
-          {joker.name}
-        </p>
-        <p className="mt-0.5 font-mono text-[0.6rem] text-gold-light sm:text-[0.65rem]">
-          {joker.tag}
-        </p>
+      <div className="jk-frame">
+        <div className="jk-face">
+          <p className="jk-label">
+            <PixelStar className="jk-star" />
+            JOKER
+            <PixelStar className="jk-star" />
+          </p>
+          <div className="jk-window">
+            <JokerSprite id={id} />
+          </div>
+          <p className="jk-name">{joker.name}</p>
+          <p className="jk-tag">{joker.tag}</p>
+          <p className="jk-effect" data-kind={joker.effect.kind}>
+            {effectLabel(joker.effect)}
+          </p>
+        </div>
       </div>
-      <p className={`mt-2 font-mono font-bold text-gold ${compact ? 'text-[0.65rem]' : 'text-xs'}`}>
-        {effectLabel(joker.effect)}
-      </p>
     </div>
   );
 }

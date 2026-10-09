@@ -30,7 +30,7 @@ export function Chip({
 export function ChipCount({ amount, label = 'fichas' }: { amount: number; label?: string }) {
   return (
     <span className="inline-flex items-center gap-2" aria-label={`${amount} ${label}`}>
-      <Chip tone="gold" className="!w-7 text-[0.55rem]" />
+      <Chip tone="gold" className="!w-8" />
       <span className="font-mono text-base font-bold text-gold-light tabular-nums">{amount}</span>
     </span>
   );
