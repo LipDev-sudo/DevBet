@@ -52,9 +52,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       await signInWithGoogle();
     } catch (e) {
       const code = (e as { code?: string }).code ?? '';
-      // Fechar a janela do Google não é um erro que o jogador precise ver.
-      if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
-        setError('Não foi possível entrar com o Google agora. Tente de novo.');
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setError('A janela do Google foi fechada antes de concluir. Tente de novo.');
+      } else if (code === 'auth/popup-blocked') {
+        setError('O navegador bloqueou a janela do Google. Libere pop-ups para este site.');
+      } else if (code === 'auth/unauthorized-domain') {
+        setError('Este endereço não está autorizado no Firebase (Authentication → Domínios).');
+      } else {
+        setError(`Não foi possível entrar com o Google agora. Tente de novo. (${code || 'erro'})`);
       }
     }
   }, []);

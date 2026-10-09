@@ -3,6 +3,8 @@ import { LEADERBOARD_SIZE, shouldReplace, type LeaderboardEntry } from './leader
 
 export interface SignedInUser {
   uid: string;
+  /** Só para o próprio jogador ver que entrou; nunca vai para o placar público. */
+  displayName: string;
 }
 
 export interface RankedEntry extends LeaderboardEntry {
@@ -17,9 +19,11 @@ export function watchAuth(callback: (user: SignedInUser | null) => void): () => 
   let cancelled = false;
   void getFirebase()
     .then(async ({ auth }) => {
-      const { onAuthStateChanged } = await import('firebase/auth');
+      const { onAuthStateChanged } = await authModule();
       if (cancelled) return;
-      stop = onAuthStateChanged(auth, (user) => callback(user ? { uid: user.uid } : null));
+      stop = onAuthStateChanged(auth, (user) =>
+        callback(user ? { uid: user.uid, displayName: user.displayName ?? '' } : null),
+      );
     })
     .catch(() => callback(null));
   return () => {
@@ -28,9 +32,15 @@ export function watchAuth(callback: (user: SignedInUser | null) => void): () => 
   };
 }
 
+// Os módulos de login são carregados antes do clique: os navegadores só abrem a janela do Google se ela for
+// aberta logo após o gesto do jogador, sem esperar o download do SDK.
+const authModule = () => import('firebase/auth');
+
 export async function signInWithGoogle(): Promise<void> {
-  const { auth } = await getFirebase();
-  const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+  const [{ auth }, { GoogleAuthProvider, signInWithPopup }] = await Promise.all([
+    getFirebase(),
+    authModule(),
+  ]);
   await signInWithPopup(auth, new GoogleAuthProvider());
 }
 

@@ -70,6 +70,9 @@ export function AccountMenu() {
   }
   return (
     <div className="flex flex-col items-start gap-2">
+      <p role="status" className="text-sm font-bold text-ivory">
+        ✓ Conectado{user.displayName ? ` como ${user.displayName}` : ''}
+      </p>
       <p className="text-xs text-ivory-dim">
         No placar como <strong className="text-ivory">{nickname || 'sem apelido'}</strong>
       </p>
