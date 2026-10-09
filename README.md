@@ -85,6 +85,8 @@ Top 20 em tempo real. É **opcional**: sem as variáveis `NEXT_PUBLIC_FIREBASE_*
 
 Limitação: o jogo roda no navegador, então as regras só barram valores impossíveis (pontuação máxima, campos inválidos); não provam que a run foi jogada de verdade. Modere pelo console do Firestore se precisar.
 
+**Moderação.** `/admin` (sem link no site, fora dos buscadores) lista os registros e permite apagar um nome impróprio, ou apagar e bloquear o jogador. Entra com a conta de e-mail e senha criada no console do Firebase (Authentication → Users); o UID dela vai em `isAdmin()` no `firestore.rules`. Só essa conta apaga: as regras do Firestore é que decidem, não a interface.
+
 Teste da interface: `node e2e/leaderboard.js off` (build sem as variáveis) e `node e2e/leaderboard.js configured` (build com valores de teste em `NEXT_PUBLIC_FIREBASE_*`). O login real e a gravação no Firestore dependem do seu projeto e precisam de teste manual.
 
 ### Variáveis de ambiente

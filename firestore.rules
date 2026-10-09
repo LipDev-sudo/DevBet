@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Placar do DEVBet. Qualquer pessoa lê o ranking; só o próprio jogador logado grava o próprio registro,
-// com campos e limites fixos, e só para um resultado MELHOR que o anterior.
+// com campos e limites fixos, e só para um resultado MELHOR que o anterior. Só o administrador apaga.
 service cloud.firestore {
   match /databases/{database}/documents {
     function validEntry(d) {
@@ -20,13 +20,29 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // Administrador (moderação): a conta de e-mail e senha criada no console do Firebase.
+    // Troque COLE_AQUI_O_UID_DO_ADMIN pelo UID dela (Authentication → Users → coluna "UID do usuário").
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == 'COLE_AQUI_O_UID_DO_ADMIN';
+    }
+
+    // Jogador bloqueado pelo administrador: não grava mais no placar.
+    function isBanned(uid) {
+      return exists(/databases/$(database)/documents/banned/$(uid));
+    }
+
     match /leaderboard/{uid} {
       allow read: if true;
-      allow create: if isOwner(uid) && validEntry(request.resource.data);
+      allow create: if isOwner(uid) && !isBanned(uid) && validEntry(request.resource.data);
       allow update: if isOwner(uid)
+        && !isBanned(uid)
         && validEntry(request.resource.data)
         && request.resource.data.score > resource.data.score;
-      allow delete: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /banned/{uid} {
+      allow read, write: if isAdmin();
     }
   }
 }

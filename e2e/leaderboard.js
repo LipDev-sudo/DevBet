@@ -73,6 +73,19 @@ const text = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/
     );
     check(!/não está ligado/i.test(t), '/placar: ligado com a configuração de teste');
   }
+  // moderação: /admin existe, não quebra e pede e-mail e senha (sem o admin ninguém apaga nada)
+  await page.goto(f.BASE + '/admin', { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  const admin = await text(page);
+  if (MODE === 'off') {
+    check(/não está ligado/i.test(admin), '/admin: avisa que o placar está desligado');
+  } else {
+    check(
+      (await page.locator('#admin-email').count()) === 1 && /Entrar/i.test(admin),
+      '/admin: mostra o login do administrador',
+    );
+    check(!/Apagar/i.test(admin), '/admin: sem login, nenhum botão de apagar');
+  }
   // o jogo não depende do placar
   await page.goto(f.BASE + '/play', { waitUntil: 'load' });
   await page.waitForTimeout(1000);

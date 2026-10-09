@@ -86,6 +86,45 @@ export async function signOutUser(): Promise<void> {
   await signOut(auth);
 }
 
+/* ----------------------------------------------------------------- moderação (admin) */
+
+/** Entra com e-mail e senha (a conta do administrador, criada no console do Firebase). */
+export async function signInAdmin(email: string, password: string): Promise<void> {
+  const [{ auth }, { signInWithEmailAndPassword }] = await Promise.all([
+    getFirebase(),
+    authModule(),
+  ]);
+  await signInWithEmailAndPassword(auth, email, password);
+}
+
+/** Todos os registros do placar (até 200), do maior para o menor. Só para a tela de moderação. */
+export async function listAllEntries(): Promise<RankedEntry[]> {
+  const { db } = await getFirebase();
+  const { collection, getDocs, limit, orderBy, query } = await import('firebase/firestore');
+  const snapshot = await getDocs(
+    query(collection(db, COLLECTION), orderBy('score', 'desc'), limit(200)),
+  );
+  return snapshot.docs.map((d) => {
+    const data = d.data() as LeaderboardEntry;
+    return {
+      uid: d.id,
+      nickname: String(data.nickname ?? '?'),
+      score: Number(data.score ?? 0),
+      bestHand: Number(data.bestHand ?? 0),
+      blindsCleared: Number(data.blindsCleared ?? 0),
+      won: Boolean(data.won),
+    };
+  });
+}
+
+/** Apaga o registro do placar; com `ban`, também impede esse jogador de voltar a gravar. */
+export async function deleteEntry(uid: string, ban: boolean): Promise<void> {
+  const { db } = await getFirebase();
+  const { deleteDoc, doc, serverTimestamp, setDoc } = await import('firebase/firestore');
+  if (ban) await setDoc(doc(db, 'banned', uid), { at: serverTimestamp() });
+  await deleteDoc(doc(db, COLLECTION, uid));
+}
+
 /** Grava a pontuação do jogador logado, só se for melhor que a anterior. `true` quando gravou. */
 export async function submitScore(uid: string, entry: LeaderboardEntry): Promise<boolean> {
   const { db } = await getFirebase();
