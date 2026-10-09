@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/Button';
 import { PlayingCard } from '@/components/ui/PlayingCard';
 import { xpProgress } from '@/engine/progression';
 import { STARTER_PACKS, TUTORIAL_PACK_ID } from '@/engine/blind';
+import { LeaderboardView } from '@/components/leaderboard/LeaderboardView';
+import { useAccount } from '@/components/leaderboard/AccountProvider';
 import { useGame } from '../GameProvider';
 
 export function StartScreen() {
   const { state, dispatch } = useGame();
+  const { configured } = useAccount();
   const profile = state.profile;
   // Na primeira run, o Dealer recomenda o pacote com os conceitos do primeiro desafio.
   const [packId, setPackId] = useState<string>(
@@ -26,6 +29,15 @@ export function StartScreen() {
           Escolha seu <span className="gold-text">baralho inicial</span>
         </h1>
       </div>
+
+      {configured && (
+        <section aria-labelledby="placar-inicio" className="mx-auto mt-8 max-w-2xl">
+          <h2 id="placar-inicio" className="table-label mb-3 text-center">
+            Placar ao vivo · Top 20
+          </h2>
+          <LeaderboardView compact />
+        </section>
+      )}
 
       <hr className="my-8 border-white/10" />
 

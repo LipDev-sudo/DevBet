@@ -6,7 +6,7 @@ import { AccountMenu } from './AccountMenu';
 import { useAccount } from './AccountProvider';
 
 /** Ranking ao vivo: a lista se atualiza sozinha quando alguém termina uma run. */
-export function LeaderboardView() {
+export function LeaderboardView({ compact = false }: { compact?: boolean }) {
   const { configured, user } = useAccount();
   const [entries, setEntries] = useState<RankedEntry[] | null>(null);
   const [error, setError] = useState('');
@@ -17,6 +17,7 @@ export function LeaderboardView() {
   }, [configured]);
 
   if (!configured) {
+    if (compact) return null;
     return (
       <p className="panel rounded-lg p-5 text-sm text-ivory-dim">
         O placar não está ligado nesta versão do jogo. O jogo continua funcionando normalmente.
@@ -49,7 +50,10 @@ export function LeaderboardView() {
         <p className="text-sm text-ivory-dim">Ninguém no placar ainda. Seja o primeiro!</p>
       )}
       {entries !== null && entries.length > 0 && (
-        <ol aria-label="Melhores pontuações" className="panel divide-y divide-white/5 rounded-lg">
+        <ol
+          aria-label="Melhores pontuações"
+          className={`panel divide-y divide-white/5 rounded-lg ${compact ? 'max-h-64 overflow-y-auto' : ''}`}
+        >
           {entries.map((entry, index) => (
             <li
               key={entry.uid}
